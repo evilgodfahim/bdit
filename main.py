@@ -17,7 +17,7 @@ FEEDS = [
     "https://fetchrss.com/feed/aLNkZSZkMOtSaLNkNF2oqA-i.rss",  # কলাম - Bangla Tribune
     "https://politepol.com/fd/4LWXWOY5wPR9.xml",  # Opinion News: Dhaka Post
     "https://politepol.com/fd/VnoJt9i4mZPJ.xml",  # Editorial | Prothom Alo
-    "https://politepol.com/fd/DrjUg80wxrku.xml",  # মতামত-সমকাল
+    "https://evilgodfahim.github.io/sop/opinion_feed.xml",  # মতামত-সমকাল
     "https://politepol.com/fd/tqu8P8uIlNm1.xml",  # বিষয় – DW
     "https://feeds.bbci.co.uk/bengali/rss.xml",  # BBC Bangla - মূলপাতা
 ]
