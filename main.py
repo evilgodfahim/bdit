@@ -20,6 +20,8 @@ FEEDS = [
     "https://evilgodfahim.github.io/sop/opinion_feed.xml",  # মতামত-সমকাল
     "https://politepol.com/fd/tqu8P8uIlNm1.xml",  # বিষয় – DW
     "https://feeds.bbci.co.uk/bengali/rss.xml",  # BBC Bangla - মূলপাতা
+
+"https://politepol.com/fd/YgbESpqhLwdK.xml"
 ]
 
 MASTER_FILE = "feed_master.xml"
