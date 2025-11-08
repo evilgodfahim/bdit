@@ -23,7 +23,11 @@ FEEDS = [
 "https://politepol.com/fd/YgbESpqhLwdK.xml",
 "https://politepol.com/fd/TnjwLaSLd1M8.xml",
 "https://politepol.com/fd/e0zKTeKoRpXa.xml",
-"https://evilgodfahim.github.io/kk/opinion.xml"
+"https://evilgodfahim.github.io/kk/opinion.xml",
+"https://politepol.com/fd/wpC8lyjp7CVq.xml",
+"https://politepol.com/fd/1yC3YJpL3i6t.xml",
+"https://politepol.com/fd/DbgDjmR4B0ua.xml",
+"https://politepol.com/fd/aPXIv1Q7cs7S.xml"
 ]
 
 MASTER_FILE = "feed_master.xml"
