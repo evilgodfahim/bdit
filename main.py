@@ -21,7 +21,8 @@ FEEDS = [
     "https://politepol.com/fd/tqu8P8uIlNm1.xml",  # বিষয় – DW
     "https://feeds.bbci.co.uk/bengali/rss.xml",  # BBC Bangla - মূলপাতা
 "https://politepol.com/fd/YgbESpqhLwdK.xml",
-"https://politepol.com/fd/TnjwLaSLd1M8.xml"
+"https://politepol.com/fd/TnjwLaSLd1M8.xml",
+"https://politepol.com/fd/e0zKTeKoRpXa.xml"
 ]
 
 MASTER_FILE = "feed_master.xml"
