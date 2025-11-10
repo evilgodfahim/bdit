@@ -4,32 +4,35 @@ import sys
 from datetime import datetime, timezone, timedelta
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
+import json
+import re
+from urllib.parse import urlparse, urlunparse
 
 # -----------------------------
 # CONFIGURATION
 # -----------------------------
 FEEDS = [
-    "https://politepol.com/fd/lRzLqNhRg2jV.xml",  # মতামত | দৈনিক নয়া দিগন্ত
-    "https://politepol.com/fd/LWVzWA8NSHfJ.xml",  # চিন্তা - দেশ রূপান্তর
-    "https://evilgodfahim.github.io/juop/editorial_news.xml",  # Jugantor Editorials
-    "https://evilgodfahim.github.io/bbop/feed.xml",  # Bonikbarta Editorial
-    "https://evilgodfahim.github.io/bdpratidin-rss/feed.xml",  # BD Pratidin – Open Air Theater
-    "https://fetchrss.com/feed/aLNkZSZkMOtSaLNkNF2oqA-i.rss",  # কলাম - Bangla Tribune
-    "https://politepol.com/fd/4LWXWOY5wPR9.xml",  # Opinion News: Dhaka Post
-    "https://politepol.com/fd/VnoJt9i4mZPJ.xml",  # Editorial | Prothom Alo
-    "https://evilgodfahim.github.io/sop/opinion_feed.xml",  # মতামত-সমকাল
-    "https://politepol.com/fd/tqu8P8uIlNm1.xml",  # বিষয় – DW
-    "https://feeds.bbci.co.uk/bengali/rss.xml",  # BBC Bangla - মূলপাতা
-"https://politepol.com/fd/YgbESpqhLwdK.xml",
-"https://politepol.com/fd/TnjwLaSLd1M8.xml",
-"https://politepol.com/fd/e0zKTeKoRpXa.xml",
-"https://evilgodfahim.github.io/kk/opinion.xml",
-"https://politepol.com/fd/1yC3YJpL3i6t.xml",
-"https://politepol.com/fd/DbgDjmR4B0ua.xml",
-"https://politepol.com/fd/aPXIv1Q7cs7S.xml",
-"https://politepol.com/fd/eYS0c238EjkY.xml",
-"https://evilgodfahim.github.io/banglanews/opinion.xml",
-"https://evilgodfahim.github.io/kalbela/opinion.xml"
+    "https://politepol.com/fd/lRzLqNhRg2jV.xml",
+    "https://politepol.com/fd/LWVzWA8NSHfJ.xml",
+    "https://evilgodfahim.github.io/juop/editorial_news.xml",
+    "https://evilgodfahim.github.io/bbop/feed.xml",
+    "https://evilgodfahim.github.io/bdpratidin-rss/feed.xml",
+    "https://fetchrss.com/feed/aLNkZSZkMOtSaLNkNF2oqA-i.rss",
+    "https://politepol.com/fd/4LWXWOY5wPR9.xml",
+    "https://politepol.com/fd/VnoJt9i4mZPJ.xml",
+    "https://evilgodfahim.github.io/sop/opinion_feed.xml",
+    "https://politepol.com/fd/tqu8P8uIlNm1.xml",
+    "https://feeds.bbci.co.uk/bengali/rss.xml",
+    "https://politepol.com/fd/YgbESpqhLwdK.xml",
+    "https://politepol.com/fd/TnjwLaSLd1M8.xml",
+    "https://politepol.com/fd/e0zKTeKoRpXa.xml",
+    "https://evilgodfahim.github.io/kk/opinion.xml",
+    "https://politepol.com/fd/1yC3YJpL3i6t.xml",
+    "https://politepol.com/fd/DbgDjmR4B0ua.xml",
+    "https://politepol.com/fd/aPXIv1Q7cs7S.xml",
+    "https://politepol.com/fd/eYS0c238EjkY.xml",
+    "https://evilgodfahim.github.io/banglanews/opinion.xml",
+    "https://evilgodfahim.github.io/kalbela/opinion.xml"
 ]
 
 MASTER_FILE = "feed_master.xml"
@@ -37,24 +40,37 @@ DAILY_FILE = "daily_feed.xml"
 LAST_SEEN_FILE = "last_seen.json"
 
 MAX_ITEMS = 500
-BD_OFFSET = 6  # Bangladesh UTC offset
+BD_OFFSET = 6
 
-import json
+# -----------------------------
+# LINK NORMALIZER (fixes Amardesh duplicate links)
+# -----------------------------
+def normalize_link(url):
+    if not url:
+        return ""
+    parsed = urlparse(url)
+    path = parsed.path.rstrip("/")
+
+    # remove duplicate /op-ed/slug/op-ed/slug pattern (Amardesh issue)
+    m = re.match(r"^(.*?/op-ed/[^/]+)(/op-ed/[^/]+)$", path)
+    if m:
+        path = m.group(1)
+
+    normalized = urlunparse((parsed.scheme, parsed.netloc, path, "", "", ""))
+    return normalized
 
 # -----------------------------
 # UTILITIES
 # -----------------------------
 def parse_date(entry):
-    """Try multiple date fields from feedparser entry"""
-    date_fields = ["published_parsed", "updated_parsed", "created_parsed"]
-    for field in date_fields:
-        t = getattr(entry, field, None)
+    fields = ["published_parsed", "updated_parsed", "created_parsed"]
+    for f in fields:
+        t = getattr(entry, f, None)
         if t:
             return datetime(*t[:6], tzinfo=timezone.utc)
     return datetime.now(timezone.utc)
 
 def load_existing(file_path):
-    """Load existing XML items"""
     if not os.path.exists(file_path):
         return []
     tree = ET.parse(file_path)
@@ -63,17 +79,16 @@ def load_existing(file_path):
     for item in root.findall(".//item"):
         try:
             title = item.find("title").text or ""
-            link = item.find("link").text or ""
+            link = normalize_link(item.find("link").text or "")
             desc = item.find("description").text or ""
             pubDate = item.find("pubDate").text or ""
-            pubDate_dt = datetime.strptime(pubDate, "%a, %d %b %Y %H:%M:%S %z")
-            items.append({"title": title, "link": link, "description": desc, "pubDate": pubDate_dt})
+            dt = datetime.strptime(pubDate, "%a, %d %b %Y %H:%M:%S %z")
+            items.append({"title": title, "link": link, "description": desc, "pubDate": dt})
         except:
             continue
     return items
 
 def write_rss(items, file_path, title="Feed"):
-    """Write items to RSS XML"""
     rss = ET.Element("rss", version="2.0")
     channel = ET.SubElement(rss, "channel")
     ET.SubElement(channel, "title").text = title
@@ -87,7 +102,6 @@ def write_rss(items, file_path, title="Feed"):
         ET.SubElement(it, "description").text = item["description"]
         ET.SubElement(it, "pubDate").text = item["pubDate"].strftime("%a, %d %b %Y %H:%M:%S %z")
 
-    # Pretty print
     xml_str = minidom.parseString(ET.tostring(rss)).toprettyxml(indent="  ")
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(xml_str)
@@ -105,7 +119,8 @@ def update_master():
         try:
             feed = feedparser.parse(url)
             for entry in feed.entries:
-                link = getattr(entry, "link", "")
+                raw_link = getattr(entry, "link", "")
+                link = normalize_link(raw_link)
                 if link and link not in existing_links:
                     new_items.append({
                         "title": getattr(entry, "title", "No Title"),
@@ -113,6 +128,7 @@ def update_master():
                         "description": getattr(entry, "summary", ""),
                         "pubDate": parse_date(entry)
                     })
+                    existing_links.add(link)
         except Exception as e:
             print(f"Error parsing {url}: {e}")
 
@@ -120,7 +136,6 @@ def update_master():
     all_items.sort(key=lambda x: x["pubDate"], reverse=True)
     all_items = all_items[:MAX_ITEMS]
 
-    # Ensure at least one dummy item if empty
     if not all_items:
         all_items = [{
             "title": "No articles yet",
@@ -137,18 +152,13 @@ def update_master():
 # -----------------------------
 def update_daily():
     print("[Updating daily_feed.xml]")
-    from_zone = timezone.utc
     to_zone = timezone(timedelta(hours=BD_OFFSET))
 
-    # Load last seen
     if os.path.exists(LAST_SEEN_FILE):
         with open(LAST_SEEN_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            last_seen = data.get("last_seen")
-            if last_seen:
-                last_seen_dt = datetime.fromisoformat(last_seen)
-            else:
-                last_seen_dt = None
+            last = data.get("last_seen")
+            last_seen_dt = datetime.fromisoformat(last) if last else None
     else:
         last_seen_dt = None
 
@@ -169,7 +179,6 @@ def update_daily():
 
     write_rss(new_items, DAILY_FILE, title="Daily Feed (Updated 9 AM BD)")
 
-    # Save last seen
     last_dt = max([i["pubDate"] for i in new_items])
     with open(LAST_SEEN_FILE, "w", encoding="utf-8") as f:
         json.dump({"last_seen": last_dt.isoformat()}, f)
