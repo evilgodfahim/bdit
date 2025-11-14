@@ -33,7 +33,8 @@ FEEDS = [
     "https://evilgodfahim.github.io/banglanews/opinion.xml",
     "https://evilgodfahim.github.io/kalbela/opinion.xml",
 "https://evilgodfahim.github.io/samakal/feeds/opinion.xml",
-"https://politepol.com/fd/dwg0cNjfFTLe.xml"
+"https://politepol.com/fd/dwg0cNjfFTLe.xml",
+"https://politepol.com/fd/RW7B9eQ8SuQ8.xml"
 ]
 
 MASTER_FILE = "feed_master.xml"
