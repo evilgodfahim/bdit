@@ -32,15 +32,15 @@ FEEDS = [
     "https://politepol.com/fd/eYS0c238EjkY.xml",
     "https://evilgodfahim.github.io/banglanews/opinion.xml",
     "https://evilgodfahim.github.io/kalbela/opinion.xml",
-"https://evilgodfahim.github.io/samakal/feeds/opinion.xml",
-"https://politepol.com/fd/dwg0cNjfFTLe.xml",
-"https://politepol.com/fd/RW7B9eQ8SuQ8.xml",
-"https://politepol.com/fd/Om635UbkdlGQ.xml",
-"https://politepol.com/fd/iBikrmLHw51t.xml",
-"https://politepol.com/fd/joNpOlIQpxws.xml",
-"https://politepol.com/fd/xwWyLagKzYe1.xml",
-"https://evilgodfahim.github.io/juop/tp_editorial_news.xml"
-"https://politepol.com/fd/OM5MULjADosd.xml"
+    "https://evilgodfahim.github.io/samakal/feeds/opinion.xml",
+    "https://politepol.com/fd/dwg0cNjfFTLe.xml",
+    "https://politepol.com/fd/RW7B9eQ8SuQ8.xml",
+    "https://politepol.com/fd/Om635UbkdlGQ.xml",
+    "https://politepol.com/fd/iBikrmLHw51t.xml",
+    "https://politepol.com/fd/joNpOlIQpxws.xml",
+    "https://politepol.com/fd/xwWyLagKzYe1.xml",
+    "https://evilgodfahim.github.io/juop/tp_editorial_news.xml",
+    "https://politepol.com/fd/OM5MULjADosd.xml"
 ]
 
 MASTER_FILE = "feed_master.xml"
@@ -51,7 +51,7 @@ MAX_ITEMS = 1000
 BD_OFFSET = 6
 
 # -----------------------------
-# LINK NORMALIZER (fixes Amardesh duplicate links)
+# LINK NORMALIZER
 # -----------------------------
 def normalize_link(url):
     if not url:
@@ -59,7 +59,6 @@ def normalize_link(url):
     parsed = urlparse(url)
     path = parsed.path.rstrip("/")
 
-    # remove duplicate /op-ed/slug/op-ed/slug pattern (Amardesh issue)
     m = re.match(r"^(.*?/op-ed/[^/]+)(/op-ed/[^/]+)$", path)
     if m:
         path = m.group(1)
@@ -119,8 +118,12 @@ def write_rss(items, file_path, title="Feed"):
 # -----------------------------
 def update_master():
     print("[Updating feed_master.xml]")
+
     existing = load_existing(MASTER_FILE)
+
     existing_links = {x["link"] for x in existing}
+    existing_titles = {x["title"].strip() for x in existing}
+
     new_items = []
 
     for url in FEEDS:
@@ -129,14 +132,22 @@ def update_master():
             for entry in feed.entries:
                 raw_link = getattr(entry, "link", "")
                 link = normalize_link(raw_link)
-                if link and link not in existing_links:
-                    new_items.append({
-                        "title": getattr(entry, "title", "No Title"),
-                        "link": link,
-                        "description": getattr(entry, "summary", ""),
-                        "pubDate": parse_date(entry)
-                    })
-                    existing_links.add(link)
+                title = getattr(entry, "title", "").strip()
+
+                # --- NEW RULE: skip if EITHER link OR title exists ---
+                if link in existing_links or title in existing_titles:
+                    continue
+
+                new_items.append({
+                    "title": title if title else "No Title",
+                    "link": link,
+                    "description": getattr(entry, "summary", ""),
+                    "pubDate": parse_date(entry)
+                })
+
+                existing_links.add(link)
+                existing_titles.add(title)
+
         except Exception as e:
             print(f"Error parsing {url}: {e}")
 
@@ -153,7 +164,7 @@ def update_master():
         }]
 
     write_rss(all_items, MASTER_FILE, title="Master Feed (Updated every 30 mins)")
-    print(f"✅ feed_master.xml updated with {len(all_items)} items")
+    print(f"✓ feed_master.xml updated with {len(all_items)} items")
 
 # -----------------------------
 # DAILY FEED UPDATE
@@ -172,6 +183,7 @@ def update_daily():
 
     master_items = load_existing(MASTER_FILE)
     new_items = []
+
     for item in master_items:
         pub = item["pubDate"].astimezone(to_zone)
         if not last_seen_dt or pub > last_seen_dt:
@@ -191,7 +203,7 @@ def update_daily():
     with open(LAST_SEEN_FILE, "w", encoding="utf-8") as f:
         json.dump({"last_seen": last_dt.isoformat()}, f)
 
-    print(f"✅ daily_feed.xml updated with {len(new_items)} items")
+    print(f"✓ daily_feed.xml updated with {len(new_items)} items")
 
 # -----------------------------
 # MAIN
