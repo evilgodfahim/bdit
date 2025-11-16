@@ -46,7 +46,7 @@ MASTER_FILE = "feed_master.xml"
 DAILY_FILE = "daily_feed.xml"
 LAST_SEEN_FILE = "last_seen.json"
 
-MAX_ITEMS = 500
+MAX_ITEMS = 1000
 BD_OFFSET = 6
 
 # -----------------------------
