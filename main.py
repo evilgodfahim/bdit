@@ -41,13 +41,14 @@ FEEDS = [
     "https://politepol.com/fd/xwWyLagKzYe1.xml",
     "https://evilgodfahim.github.io/juop/tp_editorial_news.xml",
     "https://politepol.com/fd/OM5MULjADosd.xml",
-"https://politepol.com/fd/FvaPzwOZSVaI.xml",
-"https://politepol.com/fd/CxsnfXBZ1EMn.xml",
-"https://politepol.com/fd/MMd5ai243dRY.xml"
+    "https://politepol.com/fd/FvaPzwOZSVaI.xml",
+    "https://politepol.com/fd/CxsnfXBZ1EMn.xml",
+    "https://politepol.com/fd/MMd5ai243dRY.xml"
 ]
 
 MASTER_FILE = "feed_master.xml"
 DAILY_FILE = "daily_feed.xml"
+DAILY_FILE_2 = "daily_feed_2.xml"
 LAST_SEEN_FILE = "last_seen.json"
 
 MAX_ITEMS = 1000
@@ -83,8 +84,11 @@ def parse_date(entry):
 def load_existing(file_path):
     if not os.path.exists(file_path):
         return []
-    tree = ET.parse(file_path)
-    root = tree.getroot()
+    try:
+        tree = ET.parse(file_path)
+        root = tree.getroot()
+    except Exception:
+        return []
     items = []
     for item in root.findall(".//item"):
         try:
@@ -107,10 +111,14 @@ def write_rss(items, file_path, title="Feed"):
 
     for item in items:
         it = ET.SubElement(channel, "item")
-        ET.SubElement(it, "title").text = item["title"]
-        ET.SubElement(it, "link").text = item["link"]
-        ET.SubElement(it, "description").text = item["description"]
-        ET.SubElement(it, "pubDate").text = item["pubDate"].strftime("%a, %d %b %Y %H:%M:%S %z")
+        ET.SubElement(it, "title").text = item.get("title", "")
+        ET.SubElement(it, "link").text = item.get("link", "")
+        ET.SubElement(it, "description").text = item.get("description", "")
+        pub = item.get("pubDate")
+        if isinstance(pub, datetime):
+            ET.SubElement(it, "pubDate").text = pub.strftime("%a, %d %b %Y %H:%M:%S %z")
+        else:
+            ET.SubElement(it, "pubDate").text = str(pub)
 
     xml_str = minidom.parseString(ET.tostring(rss)).toprettyxml(indent="  ")
     with open(file_path, "w", encoding="utf-8") as f:
@@ -170,7 +178,7 @@ def update_master():
     print(f"✓ feed_master.xml updated with {len(all_items)} items")
 
 # -----------------------------
-# DAILY FEED UPDATE
+# DAILY FEED UPDATE (split into two files if >100 items)
 # -----------------------------
 def update_daily():
     print("[Updating daily_feed.xml]")
@@ -192,21 +200,48 @@ def update_daily():
         if not last_seen_dt or pub > last_seen_dt:
             new_items.append(item)
 
+    # If no new items
     if not new_items:
-        new_items = [{
+        placeholder = [{
             "title": "No new articles today",
             "link": "https://evilgodfahim.github.io/",
             "description": "Daily feed will populate after first articles appear.",
             "pubDate": datetime.now(timezone.utc)
         }]
 
-    write_rss(new_items, DAILY_FILE, title="Daily Feed (Updated 9 AM BD)")
+        write_rss(placeholder, DAILY_FILE, title="Daily Feed (Updated 9 AM BD)")
+        # Ensure second file is cleared each run
+        write_rss([], DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
 
+        # Save last_seen as now
+        last_dt = placeholder[0]["pubDate"]
+        with open(LAST_SEEN_FILE, "w", encoding="utf-8") as f:
+            json.dump({"last_seen": last_dt.isoformat()}, f)
+
+        print(f"✓ daily_feed.xml updated with {len(placeholder)} items")
+        print("✓ daily_feed_2.xml cleared (no extra items)")
+        return
+
+    # --- SPLIT INTO TWO XML FILES ---
+    first_batch = new_items[:100]
+    second_batch = new_items[100:]  # may be empty
+
+    write_rss(first_batch, DAILY_FILE, title="Daily Feed (Updated 9 AM BD)")
+
+    if second_batch:
+        write_rss(second_batch, DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
+        print(f"✓ daily_feed_2.xml updated with {len(second_batch)} items")
+    else:
+        # Overwrite with empty feed to guarantee no leftovers
+        write_rss([], DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
+        print("✓ daily_feed_2.xml cleared (no extra items)")
+
+    # Update last_seen to newest pubDate from all new items
     last_dt = max([i["pubDate"] for i in new_items])
     with open(LAST_SEEN_FILE, "w", encoding="utf-8") as f:
         json.dump({"last_seen": last_dt.isoformat()}, f)
 
-    print(f"✓ daily_feed.xml updated with {len(new_items)} items")
+    print(f"✓ daily_feed.xml updated with {len(first_batch)} items")
 
 # -----------------------------
 # MAIN
