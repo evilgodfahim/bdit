@@ -40,7 +40,8 @@ FEEDS = [
     "https://politepol.com/fd/joNpOlIQpxws.xml",
     "https://politepol.com/fd/xwWyLagKzYe1.xml",
     "https://evilgodfahim.github.io/juop/tp_editorial_news.xml",
-    "https://politepol.com/fd/OM5MULjADosd.xml"
+    "https://politepol.com/fd/OM5MULjADosd.xml",
+"https://politepol.com/fd/FvaPzwOZSVaI.xml"
 ]
 
 MASTER_FILE = "feed_master.xml"
