@@ -53,6 +53,8 @@ LAST_SEEN_FILE = "last_seen.json"
 
 MAX_ITEMS = 1000
 BD_OFFSET = 6
+LOOKBACK_HOURS = 48  # Look back 48 hours to catch late-arriving articles
+LINK_RETENTION_DAYS = 7  # Keep processed links for 7 days
 
 # -----------------------------
 # LINK NORMALIZER
@@ -125,6 +127,45 @@ def write_rss(items, file_path, title="Feed"):
         f.write(xml_str)
 
 # -----------------------------
+# ENHANCED LAST SEEN TRACKING
+# -----------------------------
+def load_last_seen():
+    """Load last seen data with processed links tracking"""
+    if os.path.exists(LAST_SEEN_FILE):
+        try:
+            with open(LAST_SEEN_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                last_seen_str = data.get("last_seen")
+                return {
+                    "last_seen": datetime.fromisoformat(last_seen_str) if last_seen_str else None,
+                    "processed_links": set(data.get("processed_links", []))
+                }
+        except Exception as e:
+            print(f"Warning: Could not load last_seen.json: {e}")
+            return {"last_seen": None, "processed_links": set()}
+    return {"last_seen": None, "processed_links": set()}
+
+def save_last_seen(last_dt, processed_links, master_items):
+    """Save last seen data with link cleanup to prevent bloat"""
+    # Only keep links from articles within retention period
+    cutoff = last_dt - timedelta(days=LINK_RETENTION_DAYS)
+    master_links_recent = {
+        item["link"] for item in master_items 
+        if item["pubDate"] > cutoff
+    }
+    
+    # Keep only links that are still in recent master items
+    links_to_keep = [link for link in processed_links if link in master_links_recent]
+    
+    with open(LAST_SEEN_FILE, "w", encoding="utf-8") as f:
+        json.dump({
+            "last_seen": last_dt.isoformat(),
+            "processed_links": links_to_keep
+        }, f, indent=2)
+    
+    print(f"✓ Tracking {len(links_to_keep)} processed links")
+
+# -----------------------------
 # MASTER FEED UPDATE
 # -----------------------------
 def update_master():
@@ -145,7 +186,7 @@ def update_master():
                 link = normalize_link(raw_link)
                 title = getattr(entry, "title", "").strip()
 
-                # --- NEW RULE: skip if EITHER link OR title exists ---
+                # Skip if EITHER link OR title exists
                 if link in existing_links or title in existing_titles:
                     continue
 
@@ -175,30 +216,44 @@ def update_master():
         }]
 
     write_rss(all_items, MASTER_FILE, title="Master Feed (Updated every 30 mins)")
-    print(f"✓ feed_master.xml updated with {len(all_items)} items")
+    print(f"✓ feed_master.xml updated with {len(all_items)} items ({len(new_items)} new)")
 
 # -----------------------------
-# DAILY FEED UPDATE (split into two files if >100 items)
+# DAILY FEED UPDATE (ROBUST VERSION)
 # -----------------------------
 def update_daily():
-    print("[Updating daily_feed.xml]")
+    print("[Updating daily_feed.xml with robust tracking]")
     to_zone = timezone(timedelta(hours=BD_OFFSET))
 
-    if os.path.exists(LAST_SEEN_FILE):
-        with open(LAST_SEEN_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            last = data.get("last_seen")
-            last_seen_dt = datetime.fromisoformat(last) if last else None
+    # Load tracking data
+    last_data = load_last_seen()
+    last_seen_dt = last_data["last_seen"]
+    processed_links = last_data["processed_links"]
+
+    # Calculate lookback window
+    if last_seen_dt:
+        lookback_dt = last_seen_dt - timedelta(hours=LOOKBACK_HOURS)
+        print(f"✓ Looking for articles after {lookback_dt.astimezone(to_zone).strftime('%Y-%m-%d %H:%M %Z')}")
+        print(f"✓ Already processed {len(processed_links)} links")
     else:
-        last_seen_dt = None
+        lookback_dt = None
+        print("✓ First run - will process all articles")
 
     master_items = load_existing(MASTER_FILE)
     new_items = []
 
     for item in master_items:
+        link = item["link"]
         pub = item["pubDate"].astimezone(to_zone)
-        if not last_seen_dt or pub > last_seen_dt:
+        
+        # Skip if already processed (link-based check)
+        if link in processed_links:
+            continue
+        
+        # Include if: no lookback OR published after lookback window
+        if not lookback_dt or pub > lookback_dt:
             new_items.append(item)
+            processed_links.add(link)
 
     # If no new items
     if not new_items:
@@ -210,21 +265,22 @@ def update_daily():
         }]
 
         write_rss(placeholder, DAILY_FILE, title="Daily Feed (Updated 9 AM BD)")
-        # Ensure second file is cleared each run
         write_rss([], DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
 
-        # Save last_seen as now
+        # Save with current timestamp
         last_dt = placeholder[0]["pubDate"]
-        with open(LAST_SEEN_FILE, "w", encoding="utf-8") as f:
-            json.dump({"last_seen": last_dt.isoformat()}, f)
+        save_last_seen(last_dt, processed_links, master_items)
 
         print(f"✓ daily_feed.xml updated with {len(placeholder)} items")
         print("✓ daily_feed_2.xml cleared (no extra items)")
         return
 
-    # --- SPLIT INTO TWO XML FILES ---
+    # Sort by date descending
+    new_items.sort(key=lambda x: x["pubDate"], reverse=True)
+
+    # Split into two files
     first_batch = new_items[:100]
-    second_batch = new_items[100:]  # may be empty
+    second_batch = new_items[100:]
 
     write_rss(first_batch, DAILY_FILE, title="Daily Feed (Updated 9 AM BD)")
 
@@ -232,16 +288,15 @@ def update_daily():
         write_rss(second_batch, DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
         print(f"✓ daily_feed_2.xml updated with {len(second_batch)} items")
     else:
-        # Overwrite with empty feed to guarantee no leftovers
         write_rss([], DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
         print("✓ daily_feed_2.xml cleared (no extra items)")
 
-    # Update last_seen to newest pubDate from all new items
+    # Update last_seen to newest pubDate
     last_dt = max([i["pubDate"] for i in new_items])
-    with open(LAST_SEEN_FILE, "w", encoding="utf-8") as f:
-        json.dump({"last_seen": last_dt.isoformat()}, f)
+    save_last_seen(last_dt, processed_links, master_items)
 
     print(f"✓ daily_feed.xml updated with {len(first_batch)} items")
+    print(f"✓ Total new articles processed: {len(new_items)}")
 
 # -----------------------------
 # MAIN
