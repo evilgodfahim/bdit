@@ -55,7 +55,7 @@ LAST_SEEN_FILE = "last_seen.json"
 
 MAX_ITEMS = 1000
 BD_OFFSET = 6
-LOOKBACK_HOURS = 25  # Look back 48 hours to catch late-arriving articles
+LOOKBACK_HOURS = 48  # Look back 48 hours to catch late-arriving articles
 LINK_RETENTION_DAYS = 7  # Keep processed links for 7 days
 
 # -----------------------------
