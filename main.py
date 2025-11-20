@@ -32,7 +32,7 @@ FEEDS = [
     "https://politepol.com/fd/eYS0c238EjkY.xml",
     "https://evilgodfahim.github.io/banglanews/opinion.xml",
     "https://evilgodfahim.github.io/kalbela/opinion.xml",
-    "https://evilgodfahim.github.io/samakal/feeds/opinion.xml",
+    "https://evilgodfahim.github.io/samakal/articles.xml",
     "https://politepol.com/fd/dwg0cNjfFTLe.xml",
     "https://politepol.com/fd/RW7B9eQ8SuQ8.xml",
     "https://politepol.com/fd/Om635UbkdlGQ.xml",
