@@ -44,9 +44,9 @@ FEEDS = [
     "https://politepol.com/fd/FvaPzwOZSVaI.xml",
     "https://politepol.com/fd/CxsnfXBZ1EMn.xml",
     "https://politepol.com/fd/MMd5ai243dRY.xml",
-"https://politepol.com/fd/JULgDpaw0b8L.xml",
-"https://politepol.com/fd/fDXZXBMGFPEK.xml",
-"https://politepol.com/fd/pQRqQHo2RqLj.xml"
+    "https://politepol.com/fd/JULgDpaw0b8L.xml",
+    "https://politepol.com/fd/fDXZXBMGFPEK.xml",
+    "https://politepol.com/fd/pQRqQHo2RqLj.xml"
 ]
 
 MASTER_FILE = "feed_master.xml"
@@ -63,14 +63,31 @@ LINK_RETENTION_DAYS = 7  # Keep processed links for 7 days
 # LINK NORMALIZER
 # -----------------------------
 def normalize_link(url):
+    """Fix duplicated path segments:
+       1. /op-ed/.../op-ed/... (original)
+       2. /world/.../world/... (Amardesh patch)
+    """
     if not url:
         return ""
+
     parsed = urlparse(url)
     path = parsed.path.rstrip("/")
 
+    # --- Original /op-ed duplication fix ---
     m = re.match(r"^(.*?/op-ed/[^/]+)(/op-ed/[^/]+)$", path)
     if m:
         path = m.group(1)
+
+    # --- New: any repeated segment duplication fix ---
+    # Example: /world/abc/world/abc -> keep only first sequence
+    segments = path.strip("/").split("/")
+    n = len(segments)
+    # Check for duplication of first half
+    if n % 2 == 0:
+        half = n // 2
+        if segments[:half] == segments[half:]:
+            segments = segments[:half]
+            path = "/" + "/".join(segments)
 
     normalized = urlunparse((parsed.scheme, parsed.netloc, path, "", "", ""))
     return normalized
@@ -156,16 +173,16 @@ def save_last_seen(last_dt, processed_links, master_items):
         item["link"] for item in master_items 
         if item["pubDate"] > cutoff
     }
-    
+
     # Keep only links that are still in recent master items
     links_to_keep = [link for link in processed_links if link in master_links_recent]
-    
+
     with open(LAST_SEEN_FILE, "w", encoding="utf-8") as f:
         json.dump({
             "last_seen": last_dt.isoformat(),
             "processed_links": links_to_keep
         }, f, indent=2)
-    
+
     print(f"✓ Tracking {len(links_to_keep)} processed links")
 
 # -----------------------------
@@ -248,11 +265,11 @@ def update_daily():
     for item in master_items:
         link = item["link"]
         pub = item["pubDate"].astimezone(to_zone)
-        
+
         # Skip if already processed (link-based check)
         if link in processed_links:
             continue
-        
+
         # Include if: no lookback OR published after lookback window
         if not lookback_dt or pub > lookback_dt:
             new_items.append(item)
