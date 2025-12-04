@@ -47,8 +47,8 @@ FEEDS = [
     "https://politepol.com/fd/JULgDpaw0b8L.xml",
     "https://politepol.com/fd/fDXZXBMGFPEK.xml",
     "https://politepol.com/fd/pQRqQHo2RqLj.xml",
-"https://evilgodfahim.github.io/ad/articles.xml",
-"https://evilgodfahim.github.io/pb/articles.xml"
+    "https://evilgodfahim.github.io/ad/articles.xml",
+    "https://evilgodfahim.github.io/pb/articles.xml"
 ]
 
 MASTER_FILE = "feed_master.xml"
@@ -58,33 +58,24 @@ LAST_SEEN_FILE = "last_seen.json"
 
 MAX_ITEMS = 1000
 BD_OFFSET = 6
-LOOKBACK_HOURS = 48  # Look back 48 hours to catch late-arriving articles
-LINK_RETENTION_DAYS = 7  # Keep processed links for 7 days
+LOOKBACK_HOURS = 48
+LINK_RETENTION_DAYS = 7
 
 # -----------------------------
 # LINK NORMALIZER
 # -----------------------------
 def normalize_link(url):
-    """Fix duplicated path segments:
-       1. /op-ed/.../op-ed/... (original)
-       2. /world/.../world/... (Amardesh patch)
-    """
     if not url:
         return ""
-
     parsed = urlparse(url)
     path = parsed.path.rstrip("/")
 
-    # --- Original /op-ed duplication fix ---
     m = re.match(r"^(.*?/op-ed/[^/]+)(/op-ed/[^/]+)$", path)
     if m:
         path = m.group(1)
 
-    # --- New: any repeated segment duplication fix ---
-    # Example: /world/abc/world/abc -> keep only first sequence
     segments = path.strip("/").split("/")
     n = len(segments)
-    # Check for duplication of first half
     if n % 2 == 0:
         half = n // 2
         if segments[:half] == segments[half:]:
@@ -93,6 +84,20 @@ def normalize_link(url):
 
     normalized = urlunparse((parsed.scheme, parsed.netloc, path, "", "", ""))
     return normalized
+
+# -----------------------------
+# SOURCE EXTRACTOR
+# -----------------------------
+def extract_source(link):
+    try:
+        host = urlparse(link).netloc.lower()
+        host = host.replace("www.", "")
+        parts = host.split(".")
+        if len(parts) >= 2:
+            return parts[0]
+        return host
+    except:
+        return "unknown"
 
 # -----------------------------
 # UTILITIES
@@ -116,7 +121,7 @@ def load_existing(file_path):
     items = []
     for item in root.findall(".//item"):
         try:
-            title = item.find("title").text or ""
+            title = (item.find("title").text or "").strip()
             link = normalize_link(item.find("link").text or "")
             desc = item.find("description").text or ""
             pubDate = item.find("pubDate").text or ""
@@ -152,7 +157,6 @@ def write_rss(items, file_path, title="Feed"):
 # ENHANCED LAST SEEN TRACKING
 # -----------------------------
 def load_last_seen():
-    """Load last seen data with processed links tracking"""
     if os.path.exists(LAST_SEEN_FILE):
         try:
             with open(LAST_SEEN_FILE, "r", encoding="utf-8") as f:
@@ -162,21 +166,16 @@ def load_last_seen():
                     "last_seen": datetime.fromisoformat(last_seen_str) if last_seen_str else None,
                     "processed_links": set(data.get("processed_links", []))
                 }
-        except Exception as e:
-            print(f"Warning: Could not load last_seen.json: {e}")
+        except:
             return {"last_seen": None, "processed_links": set()}
     return {"last_seen": None, "processed_links": set()}
 
 def save_last_seen(last_dt, processed_links, master_items):
-    """Save last seen data with link cleanup to prevent bloat"""
-    # Only keep links from articles within retention period
     cutoff = last_dt - timedelta(days=LINK_RETENTION_DAYS)
     master_links_recent = {
-        item["link"] for item in master_items 
+        item["link"] for item in master_items
         if item["pubDate"] > cutoff
     }
-
-    # Keep only links that are still in recent master items
     links_to_keep = [link for link in processed_links if link in master_links_recent]
 
     with open(LAST_SEEN_FILE, "w", encoding="utf-8") as f:
@@ -184,8 +183,6 @@ def save_last_seen(last_dt, processed_links, master_items):
             "last_seen": last_dt.isoformat(),
             "processed_links": links_to_keep
         }, f, indent=2)
-
-    print(f"✓ Tracking {len(links_to_keep)} processed links")
 
 # -----------------------------
 # MASTER FEED UPDATE
@@ -208,19 +205,21 @@ def update_master():
                 link = normalize_link(raw_link)
                 title = getattr(entry, "title", "").strip()
 
-                # Skip if EITHER link OR title exists
                 if link in existing_links or title in existing_titles:
                     continue
 
+                source = extract_source(link)
+                final_title = f"{title}. [ {source} ]" if title else f"No Title. [ {source} ]"
+
                 new_items.append({
-                    "title": title if title else "No Title",
+                    "title": final_title,
                     "link": link,
                     "description": getattr(entry, "summary", ""),
                     "pubDate": parse_date(entry)
                 })
 
                 existing_links.add(link)
-                existing_titles.add(title)
+                existing_titles.add(final_title)
 
         except Exception as e:
             print(f"Error parsing {url}: {e}")
@@ -241,25 +240,20 @@ def update_master():
     print(f"✓ feed_master.xml updated with {len(all_items)} items ({len(new_items)} new)")
 
 # -----------------------------
-# DAILY FEED UPDATE (ROBUST VERSION)
+# DAILY FEED UPDATE
 # -----------------------------
 def update_daily():
     print("[Updating daily_feed.xml with robust tracking]")
     to_zone = timezone(timedelta(hours=BD_OFFSET))
 
-    # Load tracking data
     last_data = load_last_seen()
     last_seen_dt = last_data["last_seen"]
     processed_links = last_data["processed_links"]
 
-    # Calculate lookback window
     if last_seen_dt:
         lookback_dt = last_seen_dt - timedelta(hours=LOOKBACK_HOURS)
-        print(f"✓ Looking for articles after {lookback_dt.astimezone(to_zone).strftime('%Y-%m-%d %H:%M %Z')}")
-        print(f"✓ Already processed {len(processed_links)} links")
     else:
         lookback_dt = None
-        print("✓ First run - will process all articles")
 
     master_items = load_existing(MASTER_FILE)
     new_items = []
@@ -268,16 +262,13 @@ def update_daily():
         link = item["link"]
         pub = item["pubDate"].astimezone(to_zone)
 
-        # Skip if already processed (link-based check)
         if link in processed_links:
             continue
 
-        # Include if: no lookback OR published after lookback window
         if not lookback_dt or pub > lookback_dt:
             new_items.append(item)
             processed_links.add(link)
 
-    # If no new items
     if not new_items:
         placeholder = [{
             "title": "No new articles today",
@@ -289,18 +280,12 @@ def update_daily():
         write_rss(placeholder, DAILY_FILE, title="Daily Feed (Updated 9 AM BD)")
         write_rss([], DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
 
-        # Save with current timestamp
         last_dt = placeholder[0]["pubDate"]
         save_last_seen(last_dt, processed_links, master_items)
-
-        print(f"✓ daily_feed.xml updated with {len(placeholder)} items")
-        print("✓ daily_feed_2.xml cleared (no extra items)")
         return
 
-    # Sort by date descending
     new_items.sort(key=lambda x: x["pubDate"], reverse=True)
 
-    # Split into two files
     first_batch = new_items[:100]
     second_batch = new_items[100:]
 
@@ -308,17 +293,11 @@ def update_daily():
 
     if second_batch:
         write_rss(second_batch, DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
-        print(f"✓ daily_feed_2.xml updated with {len(second_batch)} items")
     else:
         write_rss([], DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
-        print("✓ daily_feed_2.xml cleared (no extra items)")
 
-    # Update last_seen to newest pubDate
     last_dt = max([i["pubDate"] for i in new_items])
     save_last_seen(last_dt, processed_links, master_items)
-
-    print(f"✓ daily_feed.xml updated with {len(first_batch)} items")
-    print(f"✓ Total new articles processed: {len(new_items)}")
 
 # -----------------------------
 # MAIN
