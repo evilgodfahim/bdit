@@ -23,7 +23,7 @@ jobs:
       - name: Run main.py (daily only)
         run: python main.py --daily-only
 
-      - name: Ensure daily_feed.xml, daily_feed_2.xml, last_seen.json and feed_state.json exist
+      - name: Ensure daily_feed.xml, daily_feed_2.xml and last_seen.json exist
         run: |
           if [ ! -f daily_feed.xml ]; then
             echo '<rss version="2.0"><channel><title>Daily Feed</title></channel></rss>' > daily_feed.xml
@@ -34,17 +34,15 @@ jobs:
           if [ ! -f last_seen.json ]; then
             echo '{"last_seen": null}' > last_seen.json
           fi
-          if [ ! -f feed_state.json ]; then
-            echo '{}' > feed_state.json
-          fi
 
       - name: Commit & push daily feeds
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add daily_feed.xml daily_feed_2.xml last_seen.json feed_state.json
+          git add daily_feed.xml daily_feed_2.xml last_seen.json
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
             git commit -m "Auto update daily feeds"
             git push
+          fi
