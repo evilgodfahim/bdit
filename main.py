@@ -49,16 +49,15 @@ FEEDS = [
     "https://politepol.com/fd/pQRqQHo2RqLj.xml",
     "https://evilgodfahim.github.io/ad/articles.xml",
     "https://evilgodfahim.github.io/pb/articles.xml",
-    "https://politepol.com/fd/bdnPXYy1YR1g.xml",
-    "https://evilgodfahim.github.io/bt/columns.xml",
-    "https://politepol.com/fd/l7Izgmv6b2LN.xml"
+"https://politepol.com/fd/bdnPXYy1YR1g.xml",
+"https://evilgodfahim.github.io/bt/columns.xml"
+"https://politepol.com/fd/l7Izgmv6b2LN.xml"
 ]
 
 MASTER_FILE = "feed_master.xml"
 DAILY_FILE = "daily_feed.xml"
 DAILY_FILE_2 = "daily_feed_2.xml"
 LAST_SEEN_FILE = "last_seen.json"
-FEED_STATS_FILE = "feed_stats.json"
 
 MAX_ITEMS = 1000
 BD_OFFSET = 6
@@ -158,7 +157,7 @@ def write_rss(items, file_path, title="Feed"):
         f.write(xml_str)
 
 # -----------------------------
-# LAST SEEN
+# ENHANCED LAST SEEN TRACKING
 # -----------------------------
 def load_last_seen():
     if os.path.exists(LAST_SEEN_FILE):
@@ -189,42 +188,21 @@ def save_last_seen(last_dt, processed_links, master_items):
         }, f, indent=2)
 
 # -----------------------------
-# FEED STATS
-# -----------------------------
-def load_feed_stats():
-    if os.path.exists(FEED_STATS_FILE):
-        try:
-            with open(FEED_STATS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except:
-            return {}
-    return {}
-
-def save_feed_stats(stats):
-    with open(FEED_STATS_FILE, "w", encoding="utf-8") as f:
-        json.dump(stats, f, indent=2)
-
-# -----------------------------
 # MASTER FEED UPDATE
 # -----------------------------
 def update_master():
     print("[Updating feed_master.xml]")
 
     existing = load_existing(MASTER_FILE)
+
     existing_links = {x["link"] for x in existing}
     existing_titles = {x["title"].strip() for x in existing}
 
-    feed_stats = load_feed_stats()
     new_items = []
 
     for url in FEEDS:
-        feed_name = urlparse(url).netloc
-        feed_stats.setdefault(feed_name, 0)
-        added_now = 0
-
         try:
             feed = feedparser.parse(url)
-
             for entry in feed.entries:
                 raw_link = getattr(entry, "link", "")
                 link = normalize_link(raw_link)
@@ -245,14 +223,9 @@ def update_master():
 
                 existing_links.add(link)
                 existing_titles.add(final_title)
-                added_now += 1
-
-            feed_stats[feed_name] += added_now
 
         except Exception as e:
             print(f"Error parsing {url}: {e}")
-
-    save_feed_stats(feed_stats)
 
     all_items = existing + new_items
     all_items.sort(key=lambda x: x["pubDate"], reverse=True)
@@ -298,27 +271,6 @@ def update_daily():
         if not lookback_dt or pub > lookback_dt:
             new_items.append(item)
             processed_links.add(link)
-
-    # DAILY FEED REPORT INSERTION
-    feed_stats = load_feed_stats()
-
-    if feed_stats:
-        report_lines = []
-        for feed, count in feed_stats.items():
-            if count > 0:
-                report_lines.append(f"{feed}: {count} new articles")
-
-        if report_lines:
-            report_text = "Daily Feed Report:\n" + "\n".join(report_lines)
-            report_item = {
-                "title": "Daily Feed Report",
-                "link": "https://evilgodfahim.github.io/",
-                "description": report_text,
-                "pubDate": datetime.now(timezone.utc)
-            }
-            new_items.insert(0, report_item)
-
-        save_feed_stats({})
 
     if not new_items:
         placeholder = [{
