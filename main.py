@@ -49,11 +49,11 @@ FEEDS = [
     "https://politepol.com/fd/pQRqQHo2RqLj.xml",
     "https://evilgodfahim.github.io/ad/articles.xml",
     "https://evilgodfahim.github.io/pb/articles.xml",
-"https://politepol.com/fd/bdnPXYy1YR1g.xml",
-"https://evilgodfahim.github.io/bt/columns.xml"
-"https://politepol.com/fd/l7Izgmv6b2LN.xml",
-"https://politepol.com/fd/WNWYGwauoZ66.xml",
-"https://evilgodfahim.github.io/bang24/articles.xml" 
+    "https://politepol.com/fd/bdnPXYy1YR1g.xml",
+    "https://evilgodfahim.github.io/bt/columns.xml",
+    "https://politepol.com/fd/l7Izgmv6b2LN.xml",
+    "https://politepol.com/fd/WNWYGwauoZ66.xml",
+    "https://evilgodfahim.github.io/bang24/articles.xml"
 ]
 
 MASTER_FILE = "feed_master.xml"
@@ -208,6 +208,11 @@ def update_master():
             for entry in feed.entries:
                 raw_link = getattr(entry, "link", "")
                 link = normalize_link(raw_link)
+
+                # Exclude links containing 'evilgodfahim'
+                if "evilgodfahim" in link:
+                    continue
+
                 title = getattr(entry, "title", "").strip()
 
                 if link in existing_links or title in existing_titles:
