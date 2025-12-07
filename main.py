@@ -87,7 +87,8 @@ def normalize_link(url):
             segments = segments[:half]
             path = "/" + "/".join(segments)
 
-    normalized = urlunparse((parsed.scheme, parsed.netloc, path, "", "", ""))
+    # *** single-line fix — restore query/fragment/params ***
+    normalized = urlunparse((parsed.scheme, parsed.netloc, path, parsed.params, parsed.query, parsed.fragment))
     return normalized
 
 # -----------------------------
@@ -209,7 +210,6 @@ def update_master():
                 raw_link = getattr(entry, "link", "")
                 link = normalize_link(raw_link)
 
-                # Exclude links containing 'evilgodfahim'
                 if "evilgodfahim" in link:
                     continue
 
