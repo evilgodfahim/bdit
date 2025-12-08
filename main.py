@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import feedparser
 import os
 import sys
@@ -7,6 +10,7 @@ from xml.dom import minidom
 import json
 import re
 from urllib.parse import urlparse, urlunparse
+from email.utils import parsedate_to_datetime
 
 # -----------------------------
 # CONFIGURATION
@@ -54,16 +58,16 @@ FEEDS = [
     "https://politepol.com/fd/l7Izgmv6b2LN.xml",
     "https://politepol.com/fd/WNWYGwauoZ66.xml",
     "https://evilgodfahim.github.io/bang24/articles.xml",
-"https://politepol.com/fd/q9DuibYN2O9z.xml",
-"https://politepol.com/fd/fssrDtv1qcWq.xml",
-"https://politepol.com/fd/sVAvn5KqTJ1i.xml",
-"https://politepol.com/fd/AQoFlVz07XoG.xml",
-"https://politepol.com/fd/jFlLPOQ6vEKp.xml",
-"https://politepol.com/fd/AVAsSOSdLHt6.xml",
-"https://politepol.com/fd/2pU3mHPVSGKg.xml",
-"https://politepol.com/fd/akNUGmmGEQiU.xml",
-"https://politepol.com/fd/4Sxhoa7GsEOT.xml",
-"https://evilgodfahim.github.io/dp/feed.xml"
+    "https://politepol.com/fd/q9DuibYN2O9z.xml",
+    "https://politepol.com/fd/fssrDtv1qcWq.xml",
+    "https://politepol.com/fd/sVAvn5KqTJ1i.xml",
+    "https://politepol.com/fd/AQoFlVz07XoG.xml",
+    "https://politepol.com/fd/jFlLPOQ6vEKp.xml",
+    "https://politepol.com/fd/AVAsSOSdLHt6.xml",
+    "https://politepol.com/fd/2pU3mHPVSGKg.xml",
+    "https://politepol.com/fd/akNUGmmGEQiU.xml",
+    "https://politepol.com/fd/4Sxhoa7GsEOT.xml",
+    "https://evilgodfahim.github.io/dp/feed.xml"
 ]
 
 MASTER_FILE = "feed_master.xml"
@@ -85,19 +89,19 @@ def normalize_link(url):
     parsed = urlparse(url)
     path = parsed.path.rstrip("/")
 
-    m = re.match(r"^(.*?/op-ed/[^/]+)(/op-ed/[^/]+)$", path)
-    if m:
-        path = m.group(1)
+    # keep query/fragment/params — restore them into normalized link
+    # attempt to collapse duplicated halves in path like /a/b/a/b -> /a/b
+    try:
+        segments = path.strip("/").split("/")
+        n = len(segments)
+        if n >= 2 and n % 2 == 0:
+            half = n // 2
+            if segments[:half] == segments[half:]:
+                segments = segments[:half]
+                path = "/" + "/".join(segments)
+    except Exception:
+        pass
 
-    segments = path.strip("/").split("/")
-    n = len(segments)
-    if n % 2 == 0:
-        half = n // 2
-        if segments[:half] == segments[half:]:
-            segments = segments[:half]
-            path = "/" + "/".join(segments)
-
-    # *** single-line fix — restore query/fragment/params ***
     normalized = urlunparse((parsed.scheme, parsed.netloc, path, parsed.params, parsed.query, parsed.fragment))
     return normalized
 
@@ -119,11 +123,36 @@ def extract_source(link):
 # UTILITIES
 # -----------------------------
 def parse_date(entry):
-    fields = ["published_parsed", "updated_parsed", "created_parsed"]
-    for f in fields:
-        t = getattr(entry, f, None)
+    # 1) prefer feedparser parsed tuples
+    for f in ("published_parsed", "updated_parsed", "created_parsed"):
+        t = None
+        try:
+            t = entry.get(f) if isinstance(entry, dict) else getattr(entry, f, None)
+        except Exception:
+            t = None
         if t:
-            return datetime(*t[:6], tzinfo=timezone.utc)
+            try:
+                return datetime(*t[:6], tzinfo=timezone.utc)
+            except Exception:
+                pass
+
+    # 2) try common string fields with robust parsing
+    for key in ("published", "updated", "pubDate", "created"):
+        val = None
+        try:
+            val = entry.get(key) if isinstance(entry, dict) else getattr(entry, key, None)
+        except Exception:
+            val = None
+        if val:
+            try:
+                dt = parsedate_to_datetime(val)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return dt.astimezone(timezone.utc)
+            except Exception:
+                continue
+
+    # 3) fallback to now (UTC)
     return datetime.now(timezone.utc)
 
 def load_existing(file_path):
@@ -137,13 +166,26 @@ def load_existing(file_path):
     items = []
     for item in root.findall(".//item"):
         try:
-            title = (item.find("title").text or "").strip()
-            link = normalize_link(item.find("link").text or "")
-            desc = item.find("description").text or ""
-            pubDate = item.find("pubDate").text or ""
-            dt = datetime.strptime(pubDate, "%a, %d %b %Y %H:%M:%S %z")
+            title_node = item.find("title")
+            link_node = item.find("link")
+            desc_node = item.find("description")
+            pub_node = item.find("pubDate")
+            title = (title_node.text or "").strip() if title_node is not None else ""
+            link = normalize_link(link_node.text or "") if link_node is not None else ""
+            desc = desc_node.text or "" if desc_node is not None else ""
+            pubDate_text = pub_node.text if pub_node is not None else None
+            if pubDate_text:
+                try:
+                    dt = parsedate_to_datetime(pubDate_text)
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                    dt = dt.astimezone(timezone.utc)
+                except Exception:
+                    dt = datetime.now(timezone.utc)
+            else:
+                dt = datetime.now(timezone.utc)
             items.append({"title": title, "link": link, "description": desc, "pubDate": dt})
-        except:
+        except Exception:
             continue
     return items
 
@@ -178,11 +220,10 @@ def load_last_seen():
             with open(LAST_SEEN_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 last_seen_str = data.get("last_seen")
-                return {
-                    "last_seen": datetime.fromisoformat(last_seen_str) if last_seen_str else None,
-                    "processed_links": set(data.get("processed_links", []))
-                }
-        except:
+                processed = set(data.get("processed_links", []))
+                last_seen_dt = datetime.fromisoformat(last_seen_str) if last_seen_str else None
+                return {"last_seen": last_seen_dt, "processed_links": processed}
+        except Exception:
             return {"last_seen": None, "processed_links": set()}
     return {"last_seen": None, "processed_links": set()}
 
@@ -217,25 +258,54 @@ def update_master():
         try:
             feed = feedparser.parse(url)
             for entry in feed.entries:
-                raw_link = getattr(entry, "link", "")
+                # robust entry access
+                raw_link = entry.get("link") if isinstance(entry, dict) else getattr(entry, "link", "")
                 link = normalize_link(raw_link)
 
+                # preserve your filter — skip any links that reference your own domain if intended
                 if "evilgodfahim" in link:
                     continue
 
-                title = getattr(entry, "title", "").strip()
-
-                if link in existing_links or title in existing_titles:
-                    continue
+                title_raw = entry.get("title", "") if isinstance(entry, dict) else getattr(entry, "title", "")
+                title = title_raw.strip()
 
                 source = extract_source(link)
                 final_title = f"{title}. [ {source} ]" if title else f"No Title. [ {source} ]"
 
+                # skip duplicates by link OR by final_title (which includes the source tag)
+                if link in existing_links or final_title in existing_titles:
+                    continue
+
+                # description: use summary, else content (content:encoded)
+                desc = ""
+                try:
+                    desc = entry.get("summary", "") if isinstance(entry, dict) else getattr(entry, "summary", "")
+                except Exception:
+                    desc = ""
+                if not desc:
+                    try:
+                        content = entry.get("content") if isinstance(entry, dict) else getattr(entry, "content", None)
+                        if content:
+                            if isinstance(content, list):
+                                first = content[0]
+                                if isinstance(first, dict):
+                                    desc = first.get("value", "") or ""
+                                else:
+                                    # some feedparser builds expose objects with .value
+                                    desc = getattr(first, "value", "") or ""
+                            else:
+                                # some feeds put full html in entry.content as a string
+                                desc = content if isinstance(content, str) else ""
+                    except Exception:
+                        desc = ""
+
+                pub_dt = parse_date(entry)
+
                 new_items.append({
                     "title": final_title,
                     "link": link,
-                    "description": getattr(entry, "summary", ""),
-                    "pubDate": parse_date(entry)
+                    "description": desc,
+                    "pubDate": pub_dt
                 })
 
                 existing_links.add(link)
@@ -268,7 +338,7 @@ def update_daily():
 
     last_data = load_last_seen()
     last_seen_dt = last_data["last_seen"]
-    processed_links = last_data["processed_links"]
+    processed_links = set(last_data["processed_links"])
 
     if last_seen_dt:
         lookback_dt = last_seen_dt - timedelta(hours=LOOKBACK_HOURS)
