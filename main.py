@@ -11,6 +11,7 @@ import json
 import re
 from urllib.parse import urlparse, urlunparse
 from email.utils import parsedate_to_datetime
+import hashlib
 
 # -----------------------------
 # CONFIGURATION
@@ -68,10 +69,10 @@ FEEDS = [
     "https://politepol.com/fd/akNUGmmGEQiU.xml",
     "https://politepol.com/fd/4Sxhoa7GsEOT.xml",
     "https://evilgodfahim.github.io/dp/feed.xml",
-"https://politepol.com/fd/h5dpg9swLxDi.xml",
-"https://politepol.com/fd/O6MpruOsm40B.xml",
-"https://politepol.com/fd/uZUiPeYnZYfl.xml",
-"https://politepol.com/fd/87W4AhwO5swk.xml"
+    "https://politepol.com/fd/h5dpg9swLxDi.xml",
+    "https://politepol.com/fd/O6MpruOsm40B.xml",
+    "https://politepol.com/fd/uZUiPeYnZYfl.xml",
+    "https://politepol.com/fd/87W4AhwO5swk.xml"
 ]
 
 MASTER_FILE = "feed_master.xml"
@@ -93,8 +94,6 @@ def normalize_link(url):
     parsed = urlparse(url)
     path = parsed.path.rstrip("/")
 
-    # keep query/fragment/params — restore them into normalized link
-    # attempt to collapse duplicated halves in path like /a/b/a/b -> /a/b
     try:
         segments = path.strip("/").split("/")
         n = len(segments)
@@ -127,7 +126,6 @@ def extract_source(link):
 # UTILITIES
 # -----------------------------
 def parse_date(entry):
-    # 1) prefer feedparser parsed tuples
     for f in ("published_parsed", "updated_parsed", "created_parsed"):
         t = None
         try:
@@ -140,7 +138,6 @@ def parse_date(entry):
             except Exception:
                 pass
 
-    # 2) try common string fields with robust parsing
     for key in ("published", "updated", "pubDate", "created"):
         val = None
         try:
@@ -156,7 +153,6 @@ def parse_date(entry):
             except Exception:
                 continue
 
-    # 3) fallback to now (UTC)
     return datetime.now(timezone.utc)
 
 def load_existing(file_path):
@@ -195,26 +191,29 @@ def load_existing(file_path):
 
 def adjust_duplicate_timestamps(items):
     """
-    Adjusts timestamps for ALL articles with the same pubDate (regardless of source).
-    Adds 1 second incrementally to subsequent duplicates.
+    Adjusts timestamps using hash-based offsets for deterministic, stable uniqueness.
+    Articles with duplicate timestamps get a consistent offset based on their link hash.
     """
     from collections import defaultdict
     
-    # Track: timestamp -> count (across ALL sources)
-    timestamp_tracker = defaultdict(int)
-    
+    # Group items by their original timestamp
+    timestamp_groups = defaultdict(list)
     for item in items:
-        original_dt = item["pubDate"]
-        
-        # Check how many times we've seen this timestamp
-        count = timestamp_tracker[original_dt]
-        
-        if count > 0:
-            # Add seconds to make it unique
-            item["pubDate"] = original_dt + timedelta(seconds=count)
-        
-        # Increment the counter for this timestamp
-        timestamp_tracker[original_dt] += 1
+        timestamp_groups[item["pubDate"]].append(item)
+    
+    # Process each group of duplicates
+    for original_dt, group in timestamp_groups.items():
+        if len(group) > 1:
+            # Sort by link to ensure consistent ordering
+            group.sort(key=lambda x: x["link"])
+            
+            for item in group:
+                # Generate hash-based offset (0-59 seconds)
+                link_hash = hashlib.md5(item["link"].encode('utf-8')).hexdigest()
+                offset_seconds = int(link_hash[:8], 16) % 60
+                
+                # Apply offset
+                item["pubDate"] = original_dt + timedelta(seconds=offset_seconds)
     
     return items
 
@@ -287,11 +286,9 @@ def update_master():
         try:
             feed = feedparser.parse(url)
             for entry in feed.entries:
-                # robust entry access
                 raw_link = entry.get("link") if isinstance(entry, dict) else getattr(entry, "link", "")
                 link = normalize_link(raw_link)
 
-                # preserve your filter — skip any links that reference your own domain if intended
                 if "evilgodfahim" in link:
                     continue
 
@@ -301,11 +298,9 @@ def update_master():
                 source = extract_source(link)
                 final_title = f"{title}. [ {source} ]" if title else f"No Title. [ {source} ]"
 
-                # skip duplicates by link OR by final_title (which includes the source tag)
                 if link in existing_links or final_title in existing_titles:
                     continue
 
-                # description: use summary, else content (content:encoded)
                 desc = ""
                 try:
                     desc = entry.get("summary", "") if isinstance(entry, dict) else getattr(entry, "summary", "")
@@ -320,10 +315,8 @@ def update_master():
                                 if isinstance(first, dict):
                                     desc = first.get("value", "") or ""
                                 else:
-                                    # some feedparser builds expose objects with .value
                                     desc = getattr(first, "value", "") or ""
                             else:
-                                # some feeds put full html in entry.content as a string
                                 desc = content if isinstance(content, str) else ""
                     except Exception:
                         desc = ""
@@ -347,7 +340,7 @@ def update_master():
     all_items.sort(key=lambda x: x["pubDate"], reverse=True)
     all_items = all_items[:MAX_ITEMS]
 
-    # Adjust duplicate timestamps for same source
+    # Adjust duplicate timestamps with hash-based stable offsets
     all_items = adjust_duplicate_timestamps(all_items)
 
     if not all_items:
@@ -408,9 +401,8 @@ def update_daily():
 
     new_items.sort(key=lambda x: x["pubDate"], reverse=True)
 
-    # Split into batches of 100 articles each
     batch_size = 100
-    num_batches = (len(new_items) + batch_size - 1) // batch_size  # Ceiling division
+    num_batches = (len(new_items) + batch_size - 1) // batch_size
     
     for i in range(num_batches):
         start_idx = i * batch_size
@@ -418,10 +410,8 @@ def update_daily():
         batch = new_items[start_idx:end_idx]
         
         if i == 0:
-            # First batch goes to daily_feed.xml
             write_rss(batch, DAILY_FILE, title="Daily Feed (Updated 9 AM BD)")
         else:
-            # Subsequent batches go to daily_feed_2.xml, daily_feed_3.xml, etc.
             file_name = f"daily_feed_{i + 1}.xml"
             write_rss(batch, file_name, title=f"Daily Feed Part {i + 1} (Updated 9 AM BD)")
     
