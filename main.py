@@ -126,6 +126,7 @@ def extract_source(link):
 # UTILITIES
 # -----------------------------
 def parse_date(entry):
+    # Try feedparser structured times first
     for f in ("published_parsed", "updated_parsed", "created_parsed"):
         t = None
         try:
@@ -138,6 +139,7 @@ def parse_date(entry):
             except Exception:
                 pass
 
+    # Try common string fields
     for key in ("published", "updated", "pubDate", "created"):
         val = None
         try:
@@ -153,6 +155,7 @@ def parse_date(entry):
             except Exception:
                 continue
 
+    # Fallback to now (UTC)
     return datetime.now(timezone.utc)
 
 def load_existing(file_path):
@@ -192,29 +195,69 @@ def load_existing(file_path):
 def adjust_duplicate_timestamps(items):
     """
     Adjusts timestamps using hash-based offsets for deterministic, stable uniqueness.
-    Articles with duplicate timestamps get a consistent offset based on their link hash.
+    Ensures no two items share the exact same timestamp (to the second).
     """
+
+    # Normalize all timestamps to UTC and remove microseconds, so duplicates truly collide.
+    for item in items:
+        dt = item.get("pubDate")
+        if not isinstance(dt, datetime):
+            try:
+                dt = datetime(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, tzinfo=timezone.utc)
+            except Exception:
+                dt = datetime.now(timezone.utc)
+        else:
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            else:
+                try:
+                    dt = dt.astimezone(timezone.utc)
+                except Exception:
+                    dt = dt.replace(tzinfo=timezone.utc)
+        item["pubDate"] = dt.replace(microsecond=0)
+
+    # Group by the normalized timestamp
     from collections import defaultdict
-    
-    # Group items by their original timestamp
     timestamp_groups = defaultdict(list)
     for item in items:
         timestamp_groups[item["pubDate"]].append(item)
-    
-    # Process each group of duplicates
+
+    # First pass: for groups with multiple items, apply deterministic hash-based offsets
     for original_dt, group in timestamp_groups.items():
         if len(group) > 1:
-            # Sort by link to ensure consistent ordering
-            group.sort(key=lambda x: x["link"])
-            
+            # Sort by link for stable ordering
+            group.sort(key=lambda x: x.get("link", ""))
+
             for item in group:
-                # Generate hash-based offset (0-59 seconds)
-                link_hash = hashlib.md5(item["link"].encode('utf-8')).hexdigest()
-                offset_seconds = int(link_hash[:8], 16) % 60
-                
-                # Apply offset
-                item["pubDate"] = original_dt + timedelta(seconds=offset_seconds)
-    
+                # Deterministic offset: 0..(MAX_OFFSET-1) seconds
+                link_hash = hashlib.md5((item.get("link") or "").encode('utf-8')).hexdigest()
+                offset_seconds = int(link_hash[:8], 16) % 300  # 0-299 seconds
+                item["_proposed_dt"] = original_dt + timedelta(seconds=offset_seconds)
+        else:
+            group[0]["_proposed_dt"] = original_dt
+
+    # Second pass: ensure global uniqueness by bumping collisions by +1 second as needed
+    used = set()
+    # Collect all items and their proposed times
+    all_items = items[:]  # preserve reference
+    # Sort by proposed datetime then by link to make deterministic
+    all_items.sort(key=lambda x: (x.get("_proposed_dt", x["pubDate"]), x.get("link", "")))
+
+    for itm in all_items:
+        prop = itm.get("_proposed_dt", itm["pubDate"])
+        # Ensure prop is timezone-aware UTC and no microsecond
+        if prop.tzinfo is None:
+            prop = prop.replace(tzinfo=timezone.utc)
+        prop = prop.replace(microsecond=0).astimezone(timezone.utc)
+
+        # If this timestamp already used, increment until free
+        while prop in used:
+            prop = prop + timedelta(seconds=1)
+        used.add(prop)
+        itm["pubDate"] = prop
+        if "_proposed_dt" in itm:
+            del itm["_proposed_dt"]
+
     return items
 
 def write_rss(items, file_path, title="Feed"):
@@ -231,7 +274,12 @@ def write_rss(items, file_path, title="Feed"):
         ET.SubElement(it, "description").text = item.get("description", "")
         pub = item.get("pubDate")
         if isinstance(pub, datetime):
-            ET.SubElement(it, "pubDate").text = pub.strftime("%a, %d %b %Y %H:%M:%S %z")
+            # Ensure timezone-aware string
+            try:
+                text = pub.strftime("%a, %d %b %Y %H:%M:%S %z")
+            except Exception:
+                text = pub.strftime("%a, %d %b %Y %H:%M:%S +0000")
+            ET.SubElement(it, "pubDate").text = text
         else:
             ET.SubElement(it, "pubDate").text = str(pub)
 
@@ -340,7 +388,7 @@ def update_master():
     all_items.sort(key=lambda x: x["pubDate"], reverse=True)
     all_items = all_items[:MAX_ITEMS]
 
-    # Adjust duplicate timestamps with hash-based stable offsets
+    # Adjust duplicate timestamps with deterministic stable offsets and global uniqueness
     all_items = adjust_duplicate_timestamps(all_items)
 
     if not all_items:
@@ -375,7 +423,11 @@ def update_daily():
 
     for item in master_items:
         link = item["link"]
-        pub = item["pubDate"].astimezone(to_zone)
+        # Use the master's pubDate normalized to BD timezone for lookback decision
+        try:
+            pub = item["pubDate"].astimezone(to_zone)
+        except Exception:
+            pub = item["pubDate"].replace(tzinfo=timezone.utc).astimezone(to_zone)
 
         if link in processed_links:
             continue
@@ -403,18 +455,21 @@ def update_daily():
 
     batch_size = 100
     num_batches = (len(new_items) + batch_size - 1) // batch_size
-    
+
     for i in range(num_batches):
         start_idx = i * batch_size
         end_idx = start_idx + batch_size
         batch = new_items[start_idx:end_idx]
-        
+
+        # Ensure batch timestamps are unique (in case master feed had collisions)
+        batch = adjust_duplicate_timestamps(batch)
+
         if i == 0:
             write_rss(batch, DAILY_FILE, title="Daily Feed (Updated 9 AM BD)")
         else:
             file_name = f"daily_feed_{i + 1}.xml"
             write_rss(batch, file_name, title=f"Daily Feed Part {i + 1} (Updated 9 AM BD)")
-    
+
     print(f"✓ Created {num_batches} daily feed file(s) with {len(new_items)} total articles")
 
     last_dt = max([i["pubDate"] for i in new_items])
