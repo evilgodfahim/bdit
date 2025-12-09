@@ -409,15 +409,24 @@ def update_daily():
 
     new_items.sort(key=lambda x: x["pubDate"], reverse=True)
 
-    first_batch = new_items[:100]
-    second_batch = new_items[100:]
-
-    write_rss(first_batch, DAILY_FILE, title="Daily Feed (Updated 9 AM BD)")
-
-    if second_batch:
-        write_rss(second_batch, DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
-    else:
-        write_rss([], DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
+    # Split into batches of 100 articles each
+    batch_size = 100
+    num_batches = (len(new_items) + batch_size - 1) // batch_size  # Ceiling division
+    
+    for i in range(num_batches):
+        start_idx = i * batch_size
+        end_idx = start_idx + batch_size
+        batch = new_items[start_idx:end_idx]
+        
+        if i == 0:
+            # First batch goes to daily_feed.xml
+            write_rss(batch, DAILY_FILE, title="Daily Feed (Updated 9 AM BD)")
+        else:
+            # Subsequent batches go to daily_feed_2.xml, daily_feed_3.xml, etc.
+            file_name = f"daily_feed_{i + 1}.xml"
+            write_rss(batch, file_name, title=f"Daily Feed Part {i + 1} (Updated 9 AM BD)")
+    
+    print(f"✓ Created {num_batches} daily feed file(s) with {len(new_items)} total articles")
 
     last_dt = max([i["pubDate"] for i in new_items])
     save_last_seen(last_dt, processed_links, master_items)
