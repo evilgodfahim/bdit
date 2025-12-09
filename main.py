@@ -11,9 +11,10 @@ import json
 import re
 from urllib.parse import urlparse, urlunparse
 from email.utils import parsedate_to_datetime
+import hashlib
 
 # -----------------------------
-# CONFIGURATION
+# CONFIG
 # -----------------------------
 FEEDS = [
     "https://politepol.com/fd/lRzLqNhRg2jV.xml",
@@ -68,10 +69,10 @@ FEEDS = [
     "https://politepol.com/fd/akNUGmmGEQiU.xml",
     "https://politepol.com/fd/4Sxhoa7GsEOT.xml",
     "https://evilgodfahim.github.io/dp/feed.xml",
-"https://politepol.com/fd/h5dpg9swLxDi.xml",
-"https://politepol.com/fd/O6MpruOsm40B.xml",
-"https://politepol.com/fd/uZUiPeYnZYfl.xml",
-"https://politepol.com/fd/87W4AhwO5swk.xml"
+    "https://politepol.com/fd/h5dpg9swLxDi.xml",
+    "https://politepol.com/fd/O6MpruOsm40B.xml",
+    "https://politepol.com/fd/uZUiPeYnZYfl.xml",
+    "https://politepol.com/fd/87W4AhwO5swk.xml"
 ]
 
 MASTER_FILE = "feed_master.xml"
@@ -84,241 +85,230 @@ BD_OFFSET = 6
 LOOKBACK_HOURS = 48
 LINK_RETENTION_DAYS = 7
 
-# -----------------------------
-# LINK NORMALIZER
-# -----------------------------
+# ----------------------------------------------------
+# NORMALIZE LINKS
+# ----------------------------------------------------
 def normalize_link(url):
     if not url:
         return ""
     parsed = urlparse(url)
     path = parsed.path.rstrip("/")
 
-    # keep query/fragment/params — restore them into normalized link
-    # attempt to collapse duplicated halves in path like /a/b/a/b -> /a/b
+    # collapse duplicated path halves
     try:
-        segments = path.strip("/").split("/")
-        n = len(segments)
+        seg = path.strip("/").split("/")
+        n = len(seg)
         if n >= 2 and n % 2 == 0:
             half = n // 2
-            if segments[:half] == segments[half:]:
-                segments = segments[:half]
-                path = "/" + "/".join(segments)
-    except Exception:
+            if seg[:half] == seg[half:]:
+                seg = seg[:half]
+                path = "/" + "/".join(seg)
+    except:
         pass
 
-    normalized = urlunparse((parsed.scheme, parsed.netloc, path, parsed.params, parsed.query, parsed.fragment))
-    return normalized
+    return urlunparse((
+        parsed.scheme,
+        parsed.netloc.lower(),
+        path,
+        parsed.params,
+        parsed.query,
+        parsed.fragment
+    ))
 
-# -----------------------------
-# SOURCE EXTRACTOR
-# -----------------------------
+# ----------------------------------------------------
+# SOURCE NAME
+# ----------------------------------------------------
 def extract_source(link):
     try:
-        host = urlparse(link).netloc.lower()
-        host = host.replace("www.", "")
+        host = urlparse(link).netloc.lower().replace("www.", "")
         parts = host.split(".")
-        if len(parts) >= 2:
-            return parts[0]
-        return host
+        return parts[0] if len(parts) >= 2 else host
     except:
         return "unknown"
 
-# -----------------------------
-# UTILITIES
-# -----------------------------
+# ----------------------------------------------------
+# DATE
+# ----------------------------------------------------
 def parse_date(entry):
-    # 1) prefer feedparser parsed tuples
     for f in ("published_parsed", "updated_parsed", "created_parsed"):
-        t = None
         try:
-            t = entry.get(f) if isinstance(entry, dict) else getattr(entry, f, None)
-        except Exception:
-            t = None
-        if t:
-            try:
+            t = entry.get(f)
+            if t:
                 return datetime(*t[:6], tzinfo=timezone.utc)
-            except Exception:
-                pass
+        except:
+            pass
 
-    # 2) try common string fields with robust parsing
-    for key in ("published", "updated", "pubDate", "created"):
-        val = None
-        try:
-            val = entry.get(key) if isinstance(entry, dict) else getattr(entry, key, None)
-        except Exception:
-            val = None
+    for f in ("published", "updated", "created", "pubDate"):
+        val = entry.get(f)
         if val:
             try:
                 dt = parsedate_to_datetime(val)
                 if dt.tzinfo is None:
                     dt = dt.replace(tzinfo=timezone.utc)
                 return dt.astimezone(timezone.utc)
-            except Exception:
+            except:
                 continue
 
-    # 3) fallback to now (UTC)
     return datetime.now(timezone.utc)
 
-def load_existing(file_path):
-    if not os.path.exists(file_path):
+# ----------------------------------------------------
+# LOAD EXISTING
+# ----------------------------------------------------
+def load_existing(path):
+    if not os.path.exists(path):
         return []
+
     try:
-        tree = ET.parse(file_path)
+        tree = ET.parse(path)
         root = tree.getroot()
-    except Exception:
+    except:
         return []
-    items = []
-    for item in root.findall(".//item"):
+
+    out = []
+    for itm in root.findall(".//item"):
         try:
-            title_node = item.find("title")
-            link_node = item.find("link")
-            desc_node = item.find("description")
-            pub_node = item.find("pubDate")
-            title = (title_node.text or "").strip() if title_node is not None else ""
-            link = normalize_link(link_node.text or "") if link_node is not None else ""
-            desc = desc_node.text or "" if desc_node is not None else ""
-            pubDate_text = pub_node.text if pub_node is not None else None
-            if pubDate_text:
-                try:
-                    dt = parsedate_to_datetime(pubDate_text)
-                    if dt.tzinfo is None:
-                        dt = dt.replace(tzinfo=timezone.utc)
-                    dt = dt.astimezone(timezone.utc)
-                except Exception:
-                    dt = datetime.now(timezone.utc)
+            t = itm.find("title")
+            l = itm.find("link")
+            d = itm.find("description")
+            p = itm.find("pubDate")
+
+            title = t.text.strip() if t is not None else ""
+            link = normalize_link(l.text) if l is not None else ""
+            desc = d.text if d is not None else ""
+
+            if p is not None:
+                dt = parsedate_to_datetime(p.text)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                dt = dt.astimezone(timezone.utc)
             else:
                 dt = datetime.now(timezone.utc)
-            items.append({"title": title, "link": link, "description": desc, "pubDate": dt})
-        except Exception:
+
+            out.append({
+                "title": title,
+                "link": link,
+                "description": desc,
+                "pubDate": dt
+            })
+        except:
             continue
-    return items
+    return out
 
-def write_rss(items, file_path, title="Feed"):
-    rss = ET.Element("rss", version="2.0")
-    channel = ET.SubElement(rss, "channel")
-    ET.SubElement(channel, "title").text = title
-    ET.SubElement(channel, "link").text = "https://evilgodfahim.github.io/"
-    ET.SubElement(channel, "description").text = f"{title} generated by script"
+# ----------------------------------------------------
+# WRITE XML
+# ----------------------------------------------------
+def write_rss(items, path, title="Feed"):
+    root = ET.Element("rss", version="2.0")
+    ch = ET.SubElement(root, "channel")
+    ET.SubElement(ch, "title").text = title
+    ET.SubElement(ch, "link").text = "https://evilgodfahim.github.io/"
+    ET.SubElement(ch, "description").text = title
 
-    for item in items:
-        it = ET.SubElement(channel, "item")
-        ET.SubElement(it, "title").text = item.get("title", "")
-        ET.SubElement(it, "link").text = item.get("link", "")
-        ET.SubElement(it, "description").text = item.get("description", "")
-        pub = item.get("pubDate")
-        if isinstance(pub, datetime):
-            ET.SubElement(it, "pubDate").text = pub.strftime("%a, %d %b %Y %H:%M:%S %z")
-        else:
-            ET.SubElement(it, "pubDate").text = str(pub)
+    for it in items:
+        node = ET.SubElement(ch, "item")
+        ET.SubElement(node, "title").text = it["title"]
+        ET.SubElement(node, "link").text = it["link"]
+        ET.SubElement(node, "description").text = it["description"]
+        ET.SubElement(node, "pubDate").text = it["pubDate"].strftime("%a, %d %b %Y %H:%M:%S %z")
 
-    xml_str = minidom.parseString(ET.tostring(rss)).toprettyxml(indent="  ")
-    with open(file_path, "w", encoding="utf-8") as f:
-        f.write(xml_str)
+    xml = minidom.parseString(ET.tostring(root)).toprettyxml(indent="  ")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(xml)
 
-# -----------------------------
-# ENHANCED LAST SEEN TRACKING
-# -----------------------------
+# ----------------------------------------------------
+# LAST SEEN
+# ----------------------------------------------------
 def load_last_seen():
-    if os.path.exists(LAST_SEEN_FILE):
-        try:
-            with open(LAST_SEEN_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                last_seen_str = data.get("last_seen")
-                processed = set(data.get("processed_links", []))
-                last_seen_dt = datetime.fromisoformat(last_seen_str) if last_seen_str else None
-                return {"last_seen": last_seen_dt, "processed_links": processed}
-        except Exception:
-            return {"last_seen": None, "processed_links": set()}
-    return {"last_seen": None, "processed_links": set()}
+    if not os.path.exists(LAST_SEEN_FILE):
+        return {"last_seen": None, "processed_links": set()}
+    try:
+        with open(LAST_SEEN_FILE, "r", encoding="utf-8") as f:
+            d = json.load(f)
+        dt = d.get("last_seen")
+        return {
+            "last_seen": datetime.fromisoformat(dt) if dt else None,
+            "processed_links": set(d.get("processed_links", []))
+        }
+    except:
+        return {"last_seen": None, "processed_links": set()}
 
-def save_last_seen(last_dt, processed_links, master_items):
-    cutoff = last_dt - timedelta(days=LINK_RETENTION_DAYS)
-    master_links_recent = {
-        item["link"] for item in master_items
-        if item["pubDate"] > cutoff
-    }
-    links_to_keep = [link for link in processed_links if link in master_links_recent]
+def save_last_seen(dt, processed, master_items):
+    cutoff = dt - timedelta(days=LINK_RETENTION_DAYS)
+    recent = {i["link"] for i in master_items if i["pubDate"] > cutoff}
+    keep = [l for l in processed if l in recent]
 
     with open(LAST_SEEN_FILE, "w", encoding="utf-8") as f:
         json.dump({
-            "last_seen": last_dt.isoformat(),
-            "processed_links": links_to_keep
+            "last_seen": dt.isoformat(),
+            "processed_links": keep
         }, f, indent=2)
 
-# -----------------------------
-# MASTER FEED UPDATE
-# -----------------------------
+# ----------------------------------------------------
+# UNIQUE HASH (title + link)
+# ----------------------------------------------------
+def make_hash(title, link):
+    base = (title.strip() + "||" + link.strip()).encode("utf-8", "ignore")
+    return hashlib.sha256(base).hexdigest()
+
+# ----------------------------------------------------
+# MASTER UPDATE
+# ----------------------------------------------------
 def update_master():
-    print("[Updating feed_master.xml]")
+    print("[master] updating")
 
     existing = load_existing(MASTER_FILE)
+    seen_hash = {make_hash(i["title"], i["link"]) for i in existing}
 
-    existing_links = {x["link"] for x in existing}
-    existing_titles = {x["title"].strip() for x in existing}
-
-    new_items = []
+    new_list = []
 
     for url in FEEDS:
         try:
             feed = feedparser.parse(url)
-            for entry in feed.entries:
-                # robust entry access
-                raw_link = entry.get("link") if isinstance(entry, dict) else getattr(entry, "link", "")
+
+            for e in feed.entries:
+                raw_link = e.get("link", "")
                 link = normalize_link(raw_link)
 
-                # preserve your filter — skip any links that reference your own domain if intended
                 if "evilgodfahim" in link:
                     continue
 
-                title_raw = entry.get("title", "") if isinstance(entry, dict) else getattr(entry, "title", "")
-                title = title_raw.strip()
+                title_raw = e.get("title", "").strip()
+                src = extract_source(link)
+                final_title = f"{title_raw}. [ {src} ]" if title_raw else f"No Title. [ {src} ]"
 
-                source = extract_source(link)
-                final_title = f"{title}. [ {source} ]" if title else f"No Title. [ {source} ]"
-
-                # skip duplicates by link OR by final_title (which includes the source tag)
-                if link in existing_links or final_title in existing_titles:
+                h = make_hash(final_title, link)
+                if h in seen_hash:
                     continue
 
-                # description: use summary, else content (content:encoded)
-                desc = ""
-                try:
-                    desc = entry.get("summary", "") if isinstance(entry, dict) else getattr(entry, "summary", "")
-                except Exception:
-                    desc = ""
+                desc = e.get("summary", "")
+
                 if not desc:
-                    try:
-                        content = entry.get("content") if isinstance(entry, dict) else getattr(entry, "content", None)
-                        if content:
-                            if isinstance(content, list):
-                                first = content[0]
-                                if isinstance(first, dict):
-                                    desc = first.get("value", "") or ""
-                                else:
-                                    # some feedparser builds expose objects with .value
-                                    desc = getattr(first, "value", "") or ""
-                            else:
-                                # some feeds put full html in entry.content as a string
-                                desc = content if isinstance(content, str) else ""
-                    except Exception:
-                        desc = ""
+                    content = e.get("content")
+                    if isinstance(content, list) and content:
+                        v = content[0]
+                        if isinstance(v, dict):
+                            desc = v.get("value", "")
+                        else:
+                            desc = getattr(v, "value", "")
+                    elif isinstance(content, str):
+                        desc = content
 
-                pub_dt = parse_date(entry)
+                pub = parse_date(e)
 
-                new_items.append({
+                item = {
                     "title": final_title,
                     "link": link,
                     "description": desc,
-                    "pubDate": pub_dt
-                })
+                    "pubDate": pub
+                }
 
-                existing_links.add(link)
-                existing_titles.add(final_title)
+                new_list.append(item)
+                seen_hash.add(h)
 
-        except Exception as e:
-            print(f"Error parsing {url}: {e}")
+        except Exception as err:
+            print("[ERROR]", url, err)
 
-    all_items = existing + new_items
+    all_items = existing + new_list
     all_items.sort(key=lambda x: x["pubDate"], reverse=True)
     all_items = all_items[:MAX_ITEMS]
 
@@ -326,81 +316,79 @@ def update_master():
         all_items = [{
             "title": "No articles yet",
             "link": "https://evilgodfahim.github.io/",
-            "description": "Master feed will populate after first successful fetch.",
+            "description": "Empty",
             "pubDate": datetime.now(timezone.utc)
         }]
 
-    write_rss(all_items, MASTER_FILE, title="Master Feed (Updated every 30 mins)")
-    print(f"✓ feed_master.xml updated with {len(all_items)} items ({len(new_items)} new)")
+    write_rss(all_items, MASTER_FILE, "Master Feed")
+    print("[master] done:", len(all_items), "items")
 
-# -----------------------------
-# DAILY FEED UPDATE
-# -----------------------------
+# ----------------------------------------------------
+# DAILY UPDATE
+# ----------------------------------------------------
 def update_daily():
-    print("[Updating daily_feed.xml with robust tracking]")
-    to_zone = timezone(timedelta(hours=BD_OFFSET))
+    print("[daily] updating")
+
+    bd = timezone(timedelta(hours=BD_OFFSET))
 
     last_data = load_last_seen()
-    last_seen_dt = last_data["last_seen"]
-    processed_links = set(last_data["processed_links"])
+    last_seen = last_data["last_seen"]
+    processed = last_data["processed_links"]
 
-    if last_seen_dt:
-        lookback_dt = last_seen_dt - timedelta(hours=LOOKBACK_HOURS)
+    if last_seen:
+        lookback = last_seen - timedelta(hours=LOOKBACK_HOURS)
     else:
-        lookback_dt = None
+        lookback = None
 
-    master_items = load_existing(MASTER_FILE)
+    master = load_existing(MASTER_FILE)
+
     new_items = []
+    for it in master:
+        link = it["link"]
+        pub = it["pubDate"].astimezone(bd)
 
-    for item in master_items:
-        link = item["link"]
-        pub = item["pubDate"].astimezone(to_zone)
-
-        if link in processed_links:
+        if link in processed:
             continue
 
-        if not lookback_dt or pub > lookback_dt:
-            new_items.append(item)
-            processed_links.add(link)
+        if not lookback or pub > lookback:
+            new_items.append(it)
+            processed.add(link)
 
     if not new_items:
         placeholder = [{
             "title": "No new articles today",
             "link": "https://evilgodfahim.github.io/",
-            "description": "Daily feed will populate after first articles appear.",
+            "description": "Empty",
             "pubDate": datetime.now(timezone.utc)
         }]
 
-        write_rss(placeholder, DAILY_FILE, title="Daily Feed (Updated 9 AM BD)")
-        write_rss([], DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
+        write_rss(placeholder, DAILY_FILE, "Daily Feed")
+        write_rss([], DAILY_FILE_2, "Daily Feed Extra")
 
-        last_dt = placeholder[0]["pubDate"]
-        save_last_seen(last_dt, processed_links, master_items)
+        save_last_seen(placeholder[0]["pubDate"], processed, master)
         return
 
     new_items.sort(key=lambda x: x["pubDate"], reverse=True)
 
-    first_batch = new_items[:100]
-    second_batch = new_items[100:]
+    first = new_items[:100]
+    second = new_items[100:]
 
-    write_rss(first_batch, DAILY_FILE, title="Daily Feed (Updated 9 AM BD)")
+    write_rss(first, DAILY_FILE, "Daily Feed")
+    write_rss(second, DAILY_FILE_2, "Daily Feed Extra")
 
-    if second_batch:
-        write_rss(second_batch, DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
-    else:
-        write_rss([], DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
+    newest = max(i["pubDate"] for i in new_items)
+    save_last_seen(newest, processed, master)
 
-    last_dt = max([i["pubDate"] for i in new_items])
-    save_last_seen(last_dt, processed_links, master_items)
+    print("[daily] done")
 
-# -----------------------------
+# ----------------------------------------------------
 # MAIN
-# -----------------------------
+# ----------------------------------------------------
 if __name__ == "__main__":
-    args = sys.argv[1:]
-    if "--master-only" in args:
+    a = sys.argv[1:]
+    if "--master-only" in a:
         update_master()
-    elif "--daily-only" in args:
+    elif "--daily-only" in a:
         update_daily()
     else:
         update_master()
