@@ -195,27 +195,26 @@ def load_existing(file_path):
 
 def adjust_duplicate_timestamps(items):
     """
-    Adjusts timestamps for articles from the same source with the same pubDate.
+    Adjusts timestamps for ALL articles with the same pubDate (regardless of source).
     Adds 1 second incrementally to subsequent duplicates.
     """
     from collections import defaultdict
     
-    # Track: source -> timestamp -> count
-    timestamp_tracker = defaultdict(lambda: defaultdict(int))
+    # Track: timestamp -> count (across ALL sources)
+    timestamp_tracker = defaultdict(int)
     
     for item in items:
-        source = extract_source(item["link"])
         original_dt = item["pubDate"]
         
-        # Check how many times we've seen this source + timestamp combo
-        count = timestamp_tracker[source][original_dt]
+        # Check how many times we've seen this timestamp
+        count = timestamp_tracker[original_dt]
         
         if count > 0:
             # Add seconds to make it unique
             item["pubDate"] = original_dt + timedelta(seconds=count)
         
-        # Increment the counter for this source + timestamp
-        timestamp_tracker[source][original_dt] += 1
+        # Increment the counter for this timestamp
+        timestamp_tracker[original_dt] += 1
     
     return items
 
