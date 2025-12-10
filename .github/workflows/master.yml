@@ -29,14 +29,14 @@ jobs:
             echo '<rss version="2.0"><channel><title>Master Feed</title></channel></rss>' > feed_master.xml
           fi
 
-      - name: Commit & push master feed
+      - name: Commit & push master and empty feeds
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add feed_master.xml
+          git add feed_master.xml empty_feeds.xml
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Auto update master feed"
+            git commit -m "Auto update feeds"
             git push
           fi
