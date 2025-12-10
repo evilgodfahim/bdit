@@ -80,6 +80,9 @@ DAILY_FILE = "daily_feed.xml"
 DAILY_FILE_2 = "daily_feed_2.xml"
 LAST_SEEN_FILE = "last_seen.json"
 
+# NEW FILE
+EMPTY_FEEDS_FILE = "empty_feeds.xml"
+
 MAX_ITEMS = 1000
 BD_OFFSET = 6
 LOOKBACK_HOURS = 48
@@ -126,7 +129,6 @@ def extract_source(link):
 # UTILITIES
 # -----------------------------
 def parse_date(entry):
-    # Try feedparser structured times first
     for f in ("published_parsed", "updated_parsed", "created_parsed"):
         t = None
         try:
@@ -139,7 +141,6 @@ def parse_date(entry):
             except Exception:
                 pass
 
-    # Try common string fields
     for key in ("published", "updated", "pubDate", "created"):
         val = None
         try:
@@ -155,7 +156,6 @@ def parse_date(entry):
             except Exception:
                 continue
 
-    # Fallback to now (UTC)
     return datetime.now(timezone.utc)
 
 def load_existing(file_path):
@@ -193,12 +193,6 @@ def load_existing(file_path):
     return items
 
 def adjust_duplicate_timestamps(items):
-    """
-    Adjusts timestamps using hash-based offsets for deterministic, stable uniqueness.
-    Ensures no two items share the exact same timestamp (to the second).
-    """
-
-    # Normalize all timestamps to UTC and remove microseconds, so duplicates truly collide.
     for item in items:
         dt = item.get("pubDate")
         if not isinstance(dt, datetime):
@@ -216,41 +210,30 @@ def adjust_duplicate_timestamps(items):
                     dt = dt.replace(tzinfo=timezone.utc)
         item["pubDate"] = dt.replace(microsecond=0)
 
-    # Group by the normalized timestamp
     from collections import defaultdict
     timestamp_groups = defaultdict(list)
     for item in items:
         timestamp_groups[item["pubDate"]].append(item)
 
-    # First pass: for groups with multiple items, apply deterministic hash-based offsets
     for original_dt, group in timestamp_groups.items():
         if len(group) > 1:
-            # Sort by link for stable ordering
             group.sort(key=lambda x: x.get("link", ""))
-
             for item in group:
-                # Deterministic offset: 0..(MAX_OFFSET-1) seconds
                 link_hash = hashlib.md5((item.get("link") or "").encode('utf-8')).hexdigest()
-                offset_seconds = int(link_hash[:8], 16) % 300  # 0-299 seconds
+                offset_seconds = int(link_hash[:8], 16) % 300
                 item["_proposed_dt"] = original_dt + timedelta(seconds=offset_seconds)
         else:
             group[0]["_proposed_dt"] = original_dt
 
-    # Second pass: ensure global uniqueness by bumping collisions by +1 second as needed
     used = set()
-    # Collect all items and their proposed times
-    all_items = items[:]  # preserve reference
-    # Sort by proposed datetime then by link to make deterministic
+    all_items = items[:]
     all_items.sort(key=lambda x: (x.get("_proposed_dt", x["pubDate"]), x.get("link", "")))
 
     for itm in all_items:
         prop = itm.get("_proposed_dt", itm["pubDate"])
-        # Ensure prop is timezone-aware UTC and no microsecond
         if prop.tzinfo is None:
             prop = prop.replace(tzinfo=timezone.utc)
         prop = prop.replace(microsecond=0).astimezone(timezone.utc)
-
-        # If this timestamp already used, increment until free
         while prop in used:
             prop = prop + timedelta(seconds=1)
         used.add(prop)
@@ -274,9 +257,8 @@ def write_rss(items, file_path, title="Feed"):
         ET.SubElement(it, "description").text = item.get("description", "")
         pub = item.get("pubDate")
         if isinstance(pub, datetime):
-            # Ensure timezone-aware string
             try:
-                text = pub.strftime("%a, %d %b %Y %H:%M:%S %z")
+                text = pub.strftime("%a, %d %b 2023 %H:%M:%S %z")
             except Exception:
                 text = pub.strftime("%a, %d %b %Y %H:%M:%S +0000")
             ET.SubElement(it, "pubDate").text = text
@@ -286,6 +268,34 @@ def write_rss(items, file_path, title="Feed"):
     xml_str = minidom.parseString(ET.tostring(rss)).toprettyxml(indent="  ")
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(xml_str)
+
+# -----------------------------
+# NEW: EMPTY FEED XML GENERATOR
+# -----------------------------
+def generate_empty_feeds_xml(urls):
+    items = []
+    now = datetime.now(timezone.utc)
+
+    for u in urls:
+        try:
+            fp = feedparser.parse(u)
+            if not fp.entries:
+                items.append({
+                    "title": "Empty Feed",
+                    "link": u,
+                    "description": "This feed returned zero articles.",
+                    "pubDate": now
+                })
+        except Exception:
+            items.append({
+                "title": "Feed Error",
+                "link": u,
+                "description": "Feed failed to parse.",
+                "pubDate": now
+            })
+
+    write_rss(items, EMPTY_FEEDS_FILE, title="Empty Feeds Report")
+
 
 # -----------------------------
 # ENHANCED LAST SEEN TRACKING
@@ -324,15 +334,18 @@ def update_master():
     print("[Updating feed_master.xml]")
 
     existing = load_existing(MASTER_FILE)
-
     existing_links = {x["link"] for x in existing}
     existing_titles = {x["title"].strip() for x in existing}
-
     new_items = []
 
+    empty_check_list = []  # NEW: collect URLs for emptiness testing later
+
     for url in FEEDS:
+        empty_check_list.append(url)
         try:
             feed = feedparser.parse(url)
+
+            # empty feed detection stays untouched here
             for entry in feed.entries:
                 raw_link = entry.get("link") if isinstance(entry, dict) else getattr(entry, "link", "")
                 link = normalize_link(raw_link)
@@ -387,8 +400,6 @@ def update_master():
     all_items = existing + new_items
     all_items.sort(key=lambda x: x["pubDate"], reverse=True)
     all_items = all_items[:MAX_ITEMS]
-
-    # Adjust duplicate timestamps with deterministic stable offsets and global uniqueness
     all_items = adjust_duplicate_timestamps(all_items)
 
     if not all_items:
@@ -400,6 +411,10 @@ def update_master():
         }]
 
     write_rss(all_items, MASTER_FILE, title="Master Feed (Updated every 30 mins)")
+
+    # NEW: publish empty feeds separately
+    generate_empty_feeds_xml(empty_check_list)
+
     print(f"✓ feed_master.xml updated with {len(all_items)} items ({len(new_items)} new)")
 
 # -----------------------------
@@ -423,7 +438,6 @@ def update_daily():
 
     for item in master_items:
         link = item["link"]
-        # Use the master's pubDate normalized to BD timezone for lookback decision
         try:
             pub = item["pubDate"].astimezone(to_zone)
         except Exception:
@@ -460,8 +474,6 @@ def update_daily():
         start_idx = i * batch_size
         end_idx = start_idx + batch_size
         batch = new_items[start_idx:end_idx]
-
-        # Ensure batch timestamps are unique (in case master feed had collisions)
         batch = adjust_duplicate_timestamps(batch)
 
         if i == 0:
