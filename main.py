@@ -12,6 +12,7 @@ import re
 from urllib.parse import urlparse, urlunparse
 from email.utils import parsedate_to_datetime
 import hashlib
+from email.utils import format_datetime
 
 # -----------------------------
 # CONFIGURATION
@@ -244,6 +245,8 @@ def adjust_duplicate_timestamps(items):
 
     return items
 
+
+
 def write_rss(items, file_path, title="Feed"):
     rss = ET.Element("rss", version="2.0")
     channel = ET.SubElement(rss, "channel")
@@ -256,20 +259,30 @@ def write_rss(items, file_path, title="Feed"):
         ET.SubElement(it, "title").text = item.get("title", "")
         ET.SubElement(it, "link").text = item.get("link", "")
         ET.SubElement(it, "description").text = item.get("description", "")
+
         pub = item.get("pubDate")
         if isinstance(pub, datetime):
+            # ensure timezone-aware (UTC fallback) and format to RFC 2822
+            if pub.tzinfo is None:
+                pub = pub.replace(tzinfo=timezone.utc)
             try:
-                text = pub.strftime("%a, %d %b 2023 %H:%M:%S %z")
+                # format_datetime produces an RFC 2822 compliant string
+                text = format_datetime(pub.astimezone(timezone.utc))
             except Exception:
-                text = pub.strftime("%a, %d %b %Y %H:%M:%S +0000")
+                # fallback: use %Y (full year) instead of a hardcoded year
+                text = pub.astimezone(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S %z")
             ET.SubElement(it, "pubDate").text = text
         else:
             ET.SubElement(it, "pubDate").text = str(pub)
 
-    xml_str = minidom.parseString(ET.tostring(rss)).toprettyxml(indent="  ")
-    with open(file_path, "w", encoding="utf-8") as f:
+    # produce UTF-8 encoded pretty XML
+    raw = ET.tostring(rss, encoding="utf-8")
+    xml_str = minidom.parseString(raw).toprettyxml(indent="  ", encoding="utf-8")
+    # minidom returns bytes when encoding specified; write bytes
+    with open(file_path, "wb") as f:
         f.write(xml_str)
-
+        
+    
 # -----------------------------
 # NEW: EMPTY FEED XML GENERATOR
 # -----------------------------
