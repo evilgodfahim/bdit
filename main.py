@@ -11,14 +11,13 @@ import json
 import re
 from urllib.parse import urlparse, urlunparse
 from email.utils import parsedate_to_datetime
-import hashlib
-from email.utils import format_datetime
 
 # -----------------------------
 # CONFIGURATION
 # -----------------------------
 FEEDS = [
-    "https://politepol.com/fd/lRzLqNhRg2jV.xml",
+     
+        "https://politepol.com/fd/lRzLqNhRg2jV.xml",
     "https://politepol.com/fd/LWVzWA8NSHfJ.xml",
     "https://evilgodfahim.github.io/juop/editorial_news.xml",
     "https://evilgodfahim.github.io/bbop/feed.xml",
@@ -82,9 +81,6 @@ DAILY_FILE = "daily_feed.xml"
 DAILY_FILE_2 = "daily_feed_2.xml"
 LAST_SEEN_FILE = "last_seen.json"
 
-# NEW FILE
-EMPTY_FEEDS_FILE = "empty_feeds.xml"
-
 MAX_ITEMS = 1000
 BD_OFFSET = 6
 LOOKBACK_HOURS = 48
@@ -99,6 +95,8 @@ def normalize_link(url):
     parsed = urlparse(url)
     path = parsed.path.rstrip("/")
 
+    # keep query/fragment/params — restore them into normalized link
+    # attempt to collapse duplicated halves in path like /a/b/a/b -> /a/b
     try:
         segments = path.strip("/").split("/")
         n = len(segments)
@@ -131,6 +129,7 @@ def extract_source(link):
 # UTILITIES
 # -----------------------------
 def parse_date(entry):
+    # 1) prefer feedparser parsed tuples
     for f in ("published_parsed", "updated_parsed", "created_parsed"):
         t = None
         try:
@@ -143,6 +142,7 @@ def parse_date(entry):
             except Exception:
                 pass
 
+    # 2) try common string fields with robust parsing
     for key in ("published", "updated", "pubDate", "created"):
         val = None
         try:
@@ -158,6 +158,7 @@ def parse_date(entry):
             except Exception:
                 continue
 
+    # 3) fallback to now (UTC)
     return datetime.now(timezone.utc)
 
 def load_existing(file_path):
@@ -194,59 +195,6 @@ def load_existing(file_path):
             continue
     return items
 
-def adjust_duplicate_timestamps(items):
-    for item in items:
-        dt = item.get("pubDate")
-        if not isinstance(dt, datetime):
-            try:
-                dt = datetime(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, tzinfo=timezone.utc)
-            except Exception:
-                dt = datetime.now(timezone.utc)
-        else:
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            else:
-                try:
-                    dt = dt.astimezone(timezone.utc)
-                except Exception:
-                    dt = dt.replace(tzinfo=timezone.utc)
-        item["pubDate"] = dt.replace(microsecond=0)
-
-    from collections import defaultdict
-    timestamp_groups = defaultdict(list)
-    for item in items:
-        timestamp_groups[item["pubDate"]].append(item)
-
-    for original_dt, group in timestamp_groups.items():
-        if len(group) > 1:
-            group.sort(key=lambda x: x.get("link", ""))
-            for item in group:
-                link_hash = hashlib.md5((item.get("link") or "").encode('utf-8')).hexdigest()
-                offset_seconds = int(link_hash[:8], 16) % 300
-                item["_proposed_dt"] = original_dt + timedelta(seconds=offset_seconds)
-        else:
-            group[0]["_proposed_dt"] = original_dt
-
-    used = set()
-    all_items = items[:]
-    all_items.sort(key=lambda x: (x.get("_proposed_dt", x["pubDate"]), x.get("link", "")))
-
-    for itm in all_items:
-        prop = itm.get("_proposed_dt", itm["pubDate"])
-        if prop.tzinfo is None:
-            prop = prop.replace(tzinfo=timezone.utc)
-        prop = prop.replace(microsecond=0).astimezone(timezone.utc)
-        while prop in used:
-            prop = prop + timedelta(seconds=1)
-        used.add(prop)
-        itm["pubDate"] = prop
-        if "_proposed_dt" in itm:
-            del itm["_proposed_dt"]
-
-    return items
-
-
-
 def write_rss(items, file_path, title="Feed"):
     rss = ET.Element("rss", version="2.0")
     channel = ET.SubElement(rss, "channel")
@@ -259,57 +207,15 @@ def write_rss(items, file_path, title="Feed"):
         ET.SubElement(it, "title").text = item.get("title", "")
         ET.SubElement(it, "link").text = item.get("link", "")
         ET.SubElement(it, "description").text = item.get("description", "")
-
         pub = item.get("pubDate")
         if isinstance(pub, datetime):
-            # ensure timezone-aware (UTC fallback) and format to RFC 2822
-            if pub.tzinfo is None:
-                pub = pub.replace(tzinfo=timezone.utc)
-            try:
-                # format_datetime produces an RFC 2822 compliant string
-                text = format_datetime(pub.astimezone(timezone.utc))
-            except Exception:
-                # fallback: use %Y (full year) instead of a hardcoded year
-                text = pub.astimezone(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S %z")
-            ET.SubElement(it, "pubDate").text = text
+            ET.SubElement(it, "pubDate").text = pub.strftime("%a, %d %b %Y %H:%M:%S %z")
         else:
             ET.SubElement(it, "pubDate").text = str(pub)
 
-    # produce UTF-8 encoded pretty XML
-    raw = ET.tostring(rss, encoding="utf-8")
-    xml_str = minidom.parseString(raw).toprettyxml(indent="  ", encoding="utf-8")
-    # minidom returns bytes when encoding specified; write bytes
-    with open(file_path, "wb") as f:
+    xml_str = minidom.parseString(ET.tostring(rss)).toprettyxml(indent="  ")
+    with open(file_path, "w", encoding="utf-8") as f:
         f.write(xml_str)
-        
-    
-# -----------------------------
-# NEW: EMPTY FEED XML GENERATOR
-# -----------------------------
-def generate_empty_feeds_xml(urls):
-    items = []
-    now = datetime.now(timezone.utc)
-
-    for u in urls:
-        try:
-            fp = feedparser.parse(u)
-            if not fp.entries:
-                items.append({
-                    "title": "Empty Feed",
-                    "link": u,
-                    "description": "This feed returned zero articles.",
-                    "pubDate": now
-                })
-        except Exception:
-            items.append({
-                "title": "Feed Error",
-                "link": u,
-                "description": "Feed failed to parse.",
-                "pubDate": now
-            })
-
-    write_rss(items, EMPTY_FEEDS_FILE, title="Empty Feeds Report")
-
 
 # -----------------------------
 # ENHANCED LAST SEEN TRACKING
@@ -348,22 +254,21 @@ def update_master():
     print("[Updating feed_master.xml]")
 
     existing = load_existing(MASTER_FILE)
+
     existing_links = {x["link"] for x in existing}
     existing_titles = {x["title"].strip() for x in existing}
+
     new_items = []
 
-    empty_check_list = []  # NEW: collect URLs for emptiness testing later
-
     for url in FEEDS:
-        empty_check_list.append(url)
         try:
             feed = feedparser.parse(url)
-
-            # empty feed detection stays untouched here
             for entry in feed.entries:
+                # robust entry access
                 raw_link = entry.get("link") if isinstance(entry, dict) else getattr(entry, "link", "")
                 link = normalize_link(raw_link)
 
+                # preserve your filter — skip any links that reference your own domain if intended
                 if "evilgodfahim" in link:
                     continue
 
@@ -373,9 +278,11 @@ def update_master():
                 source = extract_source(link)
                 final_title = f"{title}. [ {source} ]" if title else f"No Title. [ {source} ]"
 
+                # skip duplicates by link OR by final_title (which includes the source tag)
                 if link in existing_links or final_title in existing_titles:
                     continue
 
+                # description: use summary, else content (content:encoded)
                 desc = ""
                 try:
                     desc = entry.get("summary", "") if isinstance(entry, dict) else getattr(entry, "summary", "")
@@ -390,8 +297,10 @@ def update_master():
                                 if isinstance(first, dict):
                                     desc = first.get("value", "") or ""
                                 else:
+                                    # some feedparser builds expose objects with .value
                                     desc = getattr(first, "value", "") or ""
                             else:
+                                # some feeds put full html in entry.content as a string
                                 desc = content if isinstance(content, str) else ""
                     except Exception:
                         desc = ""
@@ -414,7 +323,6 @@ def update_master():
     all_items = existing + new_items
     all_items.sort(key=lambda x: x["pubDate"], reverse=True)
     all_items = all_items[:MAX_ITEMS]
-    all_items = adjust_duplicate_timestamps(all_items)
 
     if not all_items:
         all_items = [{
@@ -425,10 +333,6 @@ def update_master():
         }]
 
     write_rss(all_items, MASTER_FILE, title="Master Feed (Updated every 30 mins)")
-
-    # NEW: publish empty feeds separately
-    generate_empty_feeds_xml(empty_check_list)
-
     print(f"✓ feed_master.xml updated with {len(all_items)} items ({len(new_items)} new)")
 
 # -----------------------------
@@ -452,10 +356,7 @@ def update_daily():
 
     for item in master_items:
         link = item["link"]
-        try:
-            pub = item["pubDate"].astimezone(to_zone)
-        except Exception:
-            pub = item["pubDate"].replace(tzinfo=timezone.utc).astimezone(to_zone)
+        pub = item["pubDate"].astimezone(to_zone)
 
         if link in processed_links:
             continue
@@ -481,22 +382,15 @@ def update_daily():
 
     new_items.sort(key=lambda x: x["pubDate"], reverse=True)
 
-    batch_size = 100
-    num_batches = (len(new_items) + batch_size - 1) // batch_size
+    first_batch = new_items[:100]
+    second_batch = new_items[100:]
 
-    for i in range(num_batches):
-        start_idx = i * batch_size
-        end_idx = start_idx + batch_size
-        batch = new_items[start_idx:end_idx]
-        batch = adjust_duplicate_timestamps(batch)
+    write_rss(first_batch, DAILY_FILE, title="Daily Feed (Updated 9 AM BD)")
 
-        if i == 0:
-            write_rss(batch, DAILY_FILE, title="Daily Feed (Updated 9 AM BD)")
-        else:
-            file_name = f"daily_feed_{i + 1}.xml"
-            write_rss(batch, file_name, title=f"Daily Feed Part {i + 1} (Updated 9 AM BD)")
-
-    print(f"✓ Created {num_batches} daily feed file(s) with {len(new_items)} total articles")
+    if second_batch:
+        write_rss(second_batch, DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
+    else:
+        write_rss([], DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
 
     last_dt = max([i["pubDate"] for i in new_items])
     save_last_seen(last_dt, processed_links, master_items)
