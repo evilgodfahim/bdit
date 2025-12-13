@@ -73,7 +73,8 @@ FEEDS = [
     "https://politepol.com/fd/O6MpruOsm40B.xml",
     "https://politepol.com/fd/uZUiPeYnZYfl.xml",
     "https://politepol.com/fd/87W4AhwO5swk.xml",
-"https://politepol.com/fd/b1zBxlQviouX.xml"
+"https://politepol.com/fd/b1zBxlQviouX.xml",
+"https://politepol.com/fd/xxMR0SLCHBuN.xml"
 ]
 
 MASTER_FILE = "feed_master.xml"
