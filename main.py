@@ -82,6 +82,7 @@ MASTER_FILE = "feed_master.xml"
 DAILY_FILE = "daily_feed.xml"
 DAILY_FILE_2 = "daily_feed_2.xml"
 LAST_SEEN_FILE = "last_seen.json"
+SOURCES_FILE = "sources.txt"
 
 MAX_ITEMS = 1000
 BD_OFFSET = 6
@@ -366,6 +367,8 @@ def update_master():
     write_rss(all_items, MASTER_FILE, title="Master Feed (Updated every 30 mins)")
     print(f"✓ feed_master.xml updated with {len(all_items)} items ({len(new_items)} new)")
 
+
+
 # -----------------------------
 # DAILY FEED UPDATE
 # -----------------------------
@@ -428,6 +431,16 @@ def update_daily():
 
     last_dt = max([i["pubDate"] for i in new_items])
     save_last_seen(last_dt, processed_links, master_items)
+
+    sources = set()
+    for item in new_items:
+        m = re.search(r'\[\s*(.+?)\s*\]', item.get("title", ""))
+        if m:
+            sources.add(m.group(1).strip())
+    with open(SOURCES_FILE, "w", encoding="utf-8") as f:
+        for src in sorted(sources):
+            f.write(src + "\n")
+    print(f"✓ sources.txt written with {len(sources)} unique sources")
 
 # -----------------------------
 # MAIN
