@@ -36,7 +36,7 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add daily_feed*.xml last_seen.json
+          git add daily_feed*.xml last_seen.json *txt
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
