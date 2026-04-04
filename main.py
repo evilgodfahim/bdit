@@ -44,6 +44,7 @@ FEEDS = [
 "https://evilgodfahim.github.io/banglanews/opinion.xml",
 "https://evilgodfahim.github.io/kalbela/opinion.xml",
 "https://evilgodfahim.github.io/samakal/articles.xml",
+"https://evilgodfahim.github.io/ad/articles.xml",
 "https://politepaul.com/fd/dwg0cNjfFTLe.xml",
 "https://politepaul.com/fd/RW7B9eQ8SuQ8.xml",
 "https://politepaul.com/fd/Om635UbkdlGQ.xml",
