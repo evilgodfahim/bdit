@@ -18,6 +18,7 @@ from email.utils import parsedate_to_datetime
 FEEDS = [
 
 "https://politepaul.com/fd/lRzLqNhRg2jV.xml",
+"https://evilgodfahim.github.io/inqifaq/feeds/feed.xml",
 "https://evilgodfahim.github.io/salo/feeds/feed.xml",
 "https://evilgodfahim.github.io/ch/thoughts.xml",
 "https://evilgodfahim.github.io/pa/opinion.xml",
