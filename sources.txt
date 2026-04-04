@@ -8,15 +8,12 @@ bd-pratidin
 bonikbarta
 chaarcha
 color:var(--link-subhead)
-dailyinqilab
 dailynayadiganta
 dailysangram
-dhakapost
 jagonews24
 jugantor
 kalbela
 kalerkantho
-khaborerkagoj
 prothomalo
 protidinerbangladesh
 protidinersangbad
