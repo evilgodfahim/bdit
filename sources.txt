@@ -1,3 +1,4 @@
+#D12026
 ajkerpatrika
 alokitobangladesh
 banglanews24
@@ -11,10 +12,9 @@ dailyinqilab
 dailynayadiganta
 dailysangram
 dainikamadershomoy
-dhakamail
 dhakapost
-ittefaq
 jagonews24
+jatiyoarthoniti
 jugantor
 kalbela
 kalerkantho
