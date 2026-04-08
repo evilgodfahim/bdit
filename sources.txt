@@ -1,7 +1,6 @@
 ajkerpatrika
 alokitobangladesh
 bangladesherkhabor
-banglanews24
 banglatribune
 bbc
 bd-pratidin
@@ -26,4 +25,3 @@ protidinerbangladesh
 protidinersangbad
 rupalibangladesh
 samakal
-sharebiz
