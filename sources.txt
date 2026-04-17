@@ -6,12 +6,13 @@ bbc
 bd-pratidin
 bonikbarta
 chaarcha
+dailyamardesh
 dailyinqilab
 dailynayadiganta
 dailysangram
-dhakapost
+dainikamadershomoy
+dhakamail
 ittefaq
-jagonews24
 jatiyoarthoniti
 jugantor
 kalbela
@@ -19,7 +20,7 @@ kalerkantho
 khaborerkagoj
 mzamin
 prothomalo
+protidinerbangladesh
 protidinersangbad
 rupalibangladesh
 samakal
-sharebiz
