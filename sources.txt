@@ -11,6 +11,7 @@ dailyinqilab
 dailynayadiganta
 dailysangram
 dainikamadershomoy
+dhakamail
 ittefaq
 jatiyoarthoniti
 jugantor
@@ -23,4 +24,3 @@ protidinerbangladesh
 protidinersangbad
 rupalibangladesh
 samakal
-sharebiz
