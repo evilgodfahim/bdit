@@ -1,7 +1,6 @@
 ajkerpatrika
 alokitobangladesh
 bangladesherkhabor
-banglanews24
 banglatribune
 bbc
 bd-pratidin
@@ -13,16 +12,15 @@ dailynayadiganta
 dailysangram
 dainikamadershomoy
 dhakamail
-dhakapost
 ittefaq
 jatiyoarthoniti
 jugantor
 kalbela
 kalerkantho
-khaborerkagoj
 mzamin
 prothomalo
 protidinerbangladesh
 protidinersangbad
 rupalibangladesh
 samakal
+sharebiz
