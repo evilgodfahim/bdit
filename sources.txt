@@ -15,7 +15,6 @@ dhakamail
 dhakapost
 ittefaq
 jatiyoarthoniti
-jobanmagazine
 jugantor
 kalbela
 khaborerkagoj
@@ -25,4 +24,3 @@ protidinerbangladesh
 protidinersangbad
 rupalibangladesh
 samakal
-sharebiz
