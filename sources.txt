@@ -1,6 +1,6 @@
-#D12026
 ajkerpatrika
 alokitobangladesh
+banglanews24
 banglatribune
 bbc
 bd-pratidin
@@ -11,14 +11,13 @@ dailyinqilab
 dailynayadiganta
 dailysangram
 dainikamadershomoy
-dhakamail
 dhakapost
 ittefaq
 jatiyoarthoniti
 jugantor
 kalbela
 khaborerkagoj
-mzamin
+kholakagojbd
 prothomalo
 protidinerbangladesh
 protidinersangbad
