@@ -9,7 +9,6 @@ chaarcha
 dailyamardesh
 dailyinqilab
 dailynayadiganta
-dailysangram
 dainikamadershomoy
 dhakamail
 dhakapost
@@ -18,6 +17,7 @@ jatiyoarthoniti
 jugantor
 kalbela
 khaborerkagoj
+mzamin
 prothomalo
 protidinerbangladesh
 protidinersangbad
