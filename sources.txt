@@ -1,5 +1,6 @@
 ajkerpatrika
 alokitobangladesh
+banglanews24
 banglatribune
 bbc
 bd-pratidin
@@ -18,7 +19,6 @@ jugantor
 kalbela
 khaborerkagoj
 prothomalo
-protidinerbangladesh
 protidinersangbad
 rupalibangladesh
 samakal
