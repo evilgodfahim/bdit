@@ -7,7 +7,6 @@ bbc
 bd-pratidin
 bonikbarta
 chaarcha
-dailyamardesh
 dailyinqilab
 dailynayadiganta
 dailysangram
@@ -22,4 +21,3 @@ prothomalo
 protidinerbangladesh
 protidinersangbad
 rupalibangladesh
-samakal
