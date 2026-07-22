@@ -1,16 +1,14 @@
 ajkerpatrika
 alokitobangladesh
-banglatribune
 bbc
 bd-pratidin
 bonikbarta
 chaarcha
-dailyamardesh
 dailyinqilab
 dailynayadiganta
 dailysangram
 dainikamadershomoy
-dhakapost
+dhakamail
 ittefaq
 jatiyoarthoniti
 jobanmagazine
@@ -22,4 +20,3 @@ protidinerbangladesh
 protidinersangbad
 rupalibangladesh
 samakal
-sharebiz
