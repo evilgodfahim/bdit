@@ -4,7 +4,6 @@ bangladesherkhabor
 bbc
 bd-pratidin
 bonikbarta
-chaarcha
 dailyinqilab
 dailynayadiganta
 dailysangram
@@ -14,6 +13,7 @@ ittefaq
 jatiyoarthoniti
 jugantor
 kalbela
+khaborerkagoj
 prothomalo
 protidinerbangladesh
 protidinersangbad
