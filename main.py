@@ -25,6 +25,7 @@ FEEDS = [
 "https://evilgodfahim.github.io/ch/analysis.xml",
 "https://evilgodfahim.github.io/ch/explainer.xml",
 "https://politepaul.com/fd/LWVzWA8NSHfJ.xml",
+"https://evilgodfahim.github.io/prothomalo-rss/opinion.xml",
 "https://evilgodfahim.github.io/juop/editorial_news.xml",
 "https://evilgodfahim.github.io/bbop/feed.xml",
 "https://evilgodfahim.github.io/bdpratidin-rss/feed.xml",
