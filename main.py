@@ -16,71 +16,70 @@ from email.utils import parsedate_to_datetime
 # CONFIGURATION
 # -----------------------------
 FEEDS = [
-
-"https://politepaul.com/fd/lRzLqNhRg2jV.xml",
-"https://evilgodfahim.github.io/inqifaq/feeds/feed.xml",
-"https://evilgodfahim.github.io/salo/feeds/feed.xml",
-"https://evilgodfahim.github.io/ch/thoughts.xml",
-"https://evilgodfahim.github.io/pa/opinion.xml",
-"https://evilgodfahim.github.io/ch/analysis.xml",
-"https://evilgodfahim.github.io/ch/explainer.xml",
-"https://politepaul.com/fd/LWVzWA8NSHfJ.xml",
-"https://evilgodfahim.github.io/prothomalo-rss/opinion.xml",
-"https://evilgodfahim.github.io/juop/editorial_news.xml",
-"https://evilgodfahim.github.io/bbop/feed.xml",
-"https://evilgodfahim.github.io/bdpratidin-rss/feed.xml",
-"https://fetchrss.com/feed/aLNkZSZkMOtSaLNkNF2oqA-i.rss",
-"https://politepaul.com/fd/4LWXWOY5wPR9.xml",
-"https://politepaul.com/fd/VnoJt9i4mZPJ.xml",
-"https://evilgodfahim.github.io/sop/opinion_feed.xml",
-"https://politepaul.com/fd/tqu8P8uIlNm1.xml",
-"https://feeds.bbci.co.uk/bengali/rss.xml",
-"https://politepaul.com/fd/YgbESpqhLwdK.xml",
-"https://politepaul.com/fd/TnjwLaSLd1M8.xml",
-"https://politepaul.com/fd/e0zKTeKoRpXa.xml",
-"https://evilgodfahim.github.io/kk/opinion.xml",
-"https://politepaul.com/fd/1yC3YJpL3i6t.xml",
-"https://politepaul.com/fd/aPXIv1Q7cs7S.xml",
-"https://politepaul.com/fd/eYS0c238EjkY.xml",
-"https://evilgodfahim.github.io/banglanews/opinion.xml",
-"https://evilgodfahim.github.io/kalbela/opinion.xml",
-"https://evilgodfahim.github.io/samakal/articles.xml",
-"https://evilgodfahim.github.io/ad/articles.xml",
-"https://politepaul.com/fd/dwg0cNjfFTLe.xml",
-"https://politepaul.com/fd/RW7B9eQ8SuQ8.xml",
-"https://politepaul.com/fd/Om635UbkdlGQ.xml",
-"https://politepaul.com/fd/iBikrmLHw51t.xml",
-"https://politepaul.com/fd/joNpOlIQpxws.xml",
-"https://politepaul.com/fd/xwWyLagKzYe1.xml",
-"https://evilgodfahim.github.io/juop/tp_editorial_news.xml",
-"https://politepaul.com/fd/OM5MULjADosd.xml",
-"https://politepaul.com/fd/FvaPzwOZSVaI.xml",
-"https://politepaul.com/fd/CxsnfXBZ1EMn.xml",
-"https://politepaul.com/fd/MMd5ai243dRY.xml",
-"https://politepaul.com/fd/JULgDpaw0b8L.xml",
-"https://politepaul.com/fd/fDXZXBMGFPEK.xml",
-"https://politepaul.com/fd/pQRqQHo2RqLj.xml",
-"https://evilgodfahim.github.io/ad/articles.xml",
-"https://evilgodfahim.github.io/pb/articles.xml",
-"https://politepaul.com/fd/bdnPXYy1YR1g.xml",
-"https://evilgodfahim.github.io/bt/columns.xml",
-"https://politepaul.com/fd/l7Izgmv6b2LN.xml",
-"https://politepaul.com/fd/WNWYGwauoZ66.xml",
-"https://evilgodfahim.github.io/bang24/articles.xml",
-"https://politepaul.com/fd/q9DuibYN2O9z.xml",
-"https://politepaul.com/fd/fssrDtv1qcWq.xml",
-"https://politepaul.com/fd/sVAvn5KqTJ1i.xml",
-"https://politepaul.com/fd/AQoFlVz07XoG.xml",
-"https://evilgodfahim.github.io/dp/feed.xml",
-"https://politepaul.com/fd/h5dpg9swLxDi.xml",
-"https://politepaul.com/fd/O6MpruOsm40B.xml",
-"https://politepaul.com/fd/uZUiPeYnZYfl.xml",
-"https://politepaul.com/fd/87W4AhwO5swk.xml",
-"https://politepaul.com/fd/b1zBxlQviouX.xml",
-"https://politepaul.com/fd/xxMR0SLCHBuN.xml",
-"https://evilgodfahim.github.io/edi/articles.xml",
-"https://evilgodfahim.github.io/bdp/articles.xml",
-"https://evilgodfahim.github.io/dr/opinion.xml"
+    "https://politepaul.com/fd/lRzLqNhRg2jV.xml",
+    "https://evilgodfahim.github.io/inqifaq/feeds/feed.xml",
+    "https://evilgodfahim.github.io/salo/feeds/feed.xml",
+    "https://evilgodfahim.github.io/ch/thoughts.xml",
+    "https://evilgodfahim.github.io/pa/opinion.xml",
+    "https://evilgodfahim.github.io/ch/analysis.xml",
+    "https://evilgodfahim.github.io/ch/explainer.xml",
+    "https://politepaul.com/fd/LWVzWA8NSHfJ.xml",
+    "https://evilgodfahim.github.io/prothomalo-rss/opinion.xml",
+    "https://evilgodfahim.github.io/juop/editorial_news.xml",
+    "https://evilgodfahim.github.io/bbop/feed.xml",
+    "https://evilgodfahim.github.io/bdpratidin-rss/feed.xml",
+    "https://fetchrss.com/feed/aLNkZSZkMOtSaLNkNF2oqA-i.rss",
+    "https://politepaul.com/fd/4LWXWOY5wPR9.xml",
+    "https://politepaul.com/fd/VnoJt9i4mZPJ.xml",
+    "https://evilgodfahim.github.io/sop/opinion_feed.xml",
+    "https://politepaul.com/fd/tqu8P8uIlNm1.xml",
+    "https://feeds.bbci.co.uk/bengali/rss.xml",
+    "https://politepaul.com/fd/YgbESpqhLwdK.xml",
+    "https://politepaul.com/fd/TnjwLaSLd1M8.xml",
+    "https://politepaul.com/fd/e0zKTeKoRpXa.xml",
+    "https://evilgodfahim.github.io/kk/opinion.xml",
+    "https://politepaul.com/fd/1yC3YJpL3i6t.xml",
+    "https://politepaul.com/fd/aPXIv1Q7cs7S.xml",
+    "https://politepaul.com/fd/eYS0c238EjkY.xml",
+    "https://evilgodfahim.github.io/banglanews/opinion.xml",
+    "https://evilgodfahim.github.io/kalbela/opinion.xml",
+    "https://evilgodfahim.github.io/samakal/articles.xml",
+    "https://evilgodfahim.github.io/ad/articles.xml",
+    "https://politepaul.com/fd/dwg0cNjfFTLe.xml",
+    "https://politepaul.com/fd/RW7B9eQ8SuQ8.xml",
+    "https://politepaul.com/fd/Om635UbkdlGQ.xml",
+    "https://politepaul.com/fd/iBikrmLHw51t.xml",
+    "https://politepaul.com/fd/joNpOlIQpxws.xml",
+    "https://politepaul.com/fd/xwWyLagKzYe1.xml",
+    "https://evilgodfahim.github.io/juop/tp_editorial_news.xml",
+    "https://politepaul.com/fd/OM5MULjADosd.xml",
+    "https://politepaul.com/fd/FvaPzwOZSVaI.xml",
+    "https://politepaul.com/fd/CxsnfXBZ1EMn.xml",
+    "https://politepaul.com/fd/MMd5ai243dRY.xml",
+    "https://politepaul.com/fd/JULgDpaw0b8L.xml",
+    "https://politepaul.com/fd/fDXZXBMGFPEK.xml",
+    "https://politepaul.com/fd/pQRqQHo2RqLj.xml",
+    "https://evilgodfahim.github.io/ad/articles.xml",
+    "https://evilgodfahim.github.io/pb/articles.xml",
+    "https://politepaul.com/fd/bdnPXYy1YR1g.xml",
+    "https://evilgodfahim.github.io/bt/columns.xml",
+    "https://politepaul.com/fd/l7Izgmv6b2LN.xml",
+    "https://politepaul.com/fd/WNWYGwauoZ66.xml",
+    "https://evilgodfahim.github.io/bang24/articles.xml",
+    "https://politepaul.com/fd/q9DuibYN2O9z.xml",
+    "https://politepaul.com/fd/fssrDtv1qcWq.xml",
+    "https://politepaul.com/fd/sVAvn5KqTJ1i.xml",
+    "https://politepaul.com/fd/AQoFlVz07XoG.xml",
+    "https://evilgodfahim.github.io/dp/feed.xml",
+    "https://politepaul.com/fd/h5dpg9swLxDi.xml",
+    "https://politepaul.com/fd/O6MpruOsm40B.xml",
+    "https://politepaul.com/fd/uZUiPeYnZYfl.xml",
+    "https://politepaul.com/fd/87W4AhwO5swk.xml",
+    "https://politepaul.com/fd/b1zBxlQviouX.xml",
+    "https://politepaul.com/fd/xxMR0SLCHBuN.xml",
+    "https://evilgodfahim.github.io/edi/articles.xml",
+    "https://evilgodfahim.github.io/bdp/articles.xml",
+    "https://evilgodfahim.github.io/dr/opinion.xml",
 ]
 
 MASTER_FILE = "feed_master.xml"
@@ -95,9 +94,10 @@ LOOKBACK_HOURS = 48
 LINK_RETENTION_DAYS = 7
 
 # -----------------------------
-# BLOCKLIST (hosts to exclude from all steps)
+# BLOCKLIST
 # -----------------------------
 BLOCKED_HOSTS = {"shomoyeralo.com"}
+
 
 def is_blocked(link):
     if not link:
@@ -111,6 +111,7 @@ def is_blocked(link):
         pass
     return False
 
+
 # -----------------------------
 # LINK NORMALIZER
 # -----------------------------
@@ -119,9 +120,6 @@ def normalize_link(url):
         return ""
     parsed = urlparse(url)
     path = parsed.path.rstrip("/")
-
-    # keep query/fragment/params — restore them into normalized link
-    # attempt to collapse duplicated halves in path like /a/b/a/b -> /a/b
     try:
         segments = path.strip("/").split("/")
         n = len(segments)
@@ -132,48 +130,43 @@ def normalize_link(url):
                 path = "/" + "/".join(segments)
     except Exception:
         pass
+    return urlunparse((parsed.scheme, parsed.netloc, path, parsed.params, parsed.query, parsed.fragment))
 
-    normalized = urlunparse((parsed.scheme, parsed.netloc, path, parsed.params, parsed.query, parsed.fragment))
-    return normalized
 
 # -----------------------------
 # SOURCE EXTRACTOR
 # -----------------------------
 def extract_source(link):
     try:
-        host = urlparse(link).netloc.lower()
-        host = host.replace("www.", "")
+        host = urlparse(link).netloc.lower().replace("www.", "")
         parts = host.split(".")
-        if len(parts) >= 2:
-            return parts[0]
-        return host
-    except:
+        return parts[0] if len(parts) >= 2 else host
+    except Exception:
         return "unknown"
 
+
 # -----------------------------
-# UTILITIES
+# DATE PARSER
 # -----------------------------
 def parse_date(entry):
-    # 1) prefer feedparser parsed tuples
     for f in ("published_parsed", "updated_parsed", "created_parsed"):
         t = None
         try:
             t = entry.get(f) if isinstance(entry, dict) else getattr(entry, f, None)
         except Exception:
-            t = None
+            pass
         if t:
             try:
                 return datetime(*t[:6], tzinfo=timezone.utc)
             except Exception:
                 pass
 
-    # 2) try common string fields with robust parsing
     for key in ("published", "updated", "pubDate", "created"):
         val = None
         try:
             val = entry.get(key) if isinstance(entry, dict) else getattr(entry, key, None)
         except Exception:
-            val = None
+            pass
         if val:
             try:
                 dt = parsedate_to_datetime(val)
@@ -183,9 +176,12 @@ def parse_date(entry):
             except Exception:
                 continue
 
-    # 3) fallback to now (UTC)
     return datetime.now(timezone.utc)
 
+
+# -----------------------------
+# LOAD EXISTING
+# -----------------------------
 def load_existing(file_path):
     if not os.path.exists(file_path):
         return []
@@ -201,12 +197,19 @@ def load_existing(file_path):
             link_node = item.find("link")
             desc_node = item.find("description")
             pub_node = item.find("pubDate")
+
             title = (title_node.text or "").strip() if title_node is not None else ""
             link = normalize_link(link_node.text or "") if link_node is not None else ""
-            # skip blocked hosts found in existing files
+
             if is_blocked(link):
                 continue
-            desc = desc_node.text or "" if desc_node is not None else ""
+
+            # itertext() safely concatenates CDATA + adjacent text nodes
+            desc = (
+                "".join(desc_node.itertext())
+                if desc_node is not None else ""
+            )
+
             pubDate_text = pub_node.text if pub_node is not None else None
             if pubDate_text:
                 try:
@@ -218,39 +221,210 @@ def load_existing(file_path):
                     dt = datetime.now(timezone.utc)
             else:
                 dt = datetime.now(timezone.utc)
+
             items.append({"title": title, "link": link, "description": desc, "pubDate": dt})
         except Exception:
             continue
     return items
 
+
+# -----------------------------
+# NEW: DESCRIPTION HELPERS
+# -----------------------------
+
+def get_description(entry):
+    """
+    Return the richest HTML body available.
+    Tries content:encoded (feedparser key: 'content') before summary.
+    Picks whichever is longer — content:encoded usually has the full HTML
+    while summary may be stripped/plain.
+    """
+    content_html = ""
+    try:
+        content_list = (
+            entry.get("content") if isinstance(entry, dict)
+            else getattr(entry, "content", None)
+        )
+        if content_list:
+            if isinstance(content_list, list):
+                for c in content_list:
+                    val = (
+                        (c.get("value") if isinstance(c, dict) else getattr(c, "value", None))
+                        or ""
+                    )
+                    if len(val) > len(content_html):
+                        content_html = val
+            elif isinstance(content_list, str):
+                content_html = content_list
+    except Exception:
+        pass
+
+    summary = ""
+    try:
+        summary = (
+            (entry.get("summary") if isinstance(entry, dict) else getattr(entry, "summary", None))
+            or ""
+        )
+    except Exception:
+        pass
+
+    return content_html if len(content_html) >= len(summary) else summary
+
+
+def get_thumbnail(entry):
+    """
+    Extract the first usable image URL from:
+      1. media:thumbnail  (most common in Bangla RSS)
+      2. media:content
+      3. enclosures (image/* only)
+    Returns "" when nothing is found.
+    """
+    # 1. media:thumbnail
+    try:
+        thumbs = (
+            entry.get("media_thumbnail") if isinstance(entry, dict)
+            else getattr(entry, "media_thumbnail", None)
+        )
+        if thumbs:
+            t = thumbs[0] if isinstance(thumbs, list) else thumbs
+            url = (t.get("url") if isinstance(t, dict) else getattr(t, "url", None)) or ""
+            if url:
+                return url
+    except Exception:
+        pass
+
+    # 2. media:content
+    try:
+        media = (
+            entry.get("media_content") if isinstance(entry, dict)
+            else getattr(entry, "media_content", None)
+        )
+        if media:
+            for m in (media if isinstance(media, list) else [media]):
+                url = (m.get("url") if isinstance(m, dict) else getattr(m, "url", None)) or ""
+                if url:
+                    return url
+    except Exception:
+        pass
+
+    # 3. enclosures — images only
+    try:
+        enc = (
+            entry.get("enclosures") if isinstance(entry, dict)
+            else getattr(entry, "enclosures", None)
+        )
+        if enc:
+            for e in (enc if isinstance(enc, list) else [enc]):
+                url = (
+                    (e.get("url") or e.get("href", "")) if isinstance(e, dict)
+                    else getattr(e, "url", getattr(e, "href", ""))
+                ) or ""
+                etype = (
+                    (e.get("type") if isinstance(e, dict) else getattr(e, "type", None))
+                    or ""
+                )
+                if url and "image" in etype:
+                    return url
+    except Exception:
+        pass
+
+    return ""
+
+
+def build_description(entry, link):
+    """
+    Compose the full HTML description block:
+      [thumbnail img]  ← only if body lacks <img> and thumbnail exists
+      body             ← from content:encoded or summary (longer wins)
+      বিস্তারিত link  ← only if body doesn't already have a more_link
+    """
+    body = get_description(entry)
+    thumb = get_thumbnail(entry)
+
+    has_img = bool(re.search(r"<img\b", body, re.IGNORECASE)) if body else False
+    has_more = ("more_link" in body or "বিস্তারিত" in body) if body else False
+
+    parts = []
+    if thumb and not has_img:
+        parts.append(
+            f'<img src="{thumb}" style="float: left; margin: 0 10px 10px 0;" width="150" />'
+        )
+    if body:
+        parts.append(body)
+    if link and not has_more:
+        parts.append(f'<a class="more_link" href="{link}">বিস্তারিত</a>')
+
+    return "\n".join(parts)
+
+
+# -----------------------------
+# WRITE RSS  (CDATA for descriptions)
+# -----------------------------
+
 def write_rss(items, file_path, title="Feed"):
-    # filter out any blocked items before writing (safety)
+    """
+    Build a well-formed RSS 2.0 file.
+    Descriptions are wrapped in CDATA so HTML renders correctly in feed readers
+    instead of being double-escaped into visible tags.
+    """
     filtered = [i for i in items if not is_blocked(i.get("link", ""))]
 
-    rss = ET.Element("rss", version="2.0")
-    channel = ET.SubElement(rss, "channel")
-    ET.SubElement(channel, "title").text = title
-    ET.SubElement(channel, "link").text = "https://evilgodfahim.github.io/"
-    ET.SubElement(channel, "description").text = f"{title} generated by script"
+    impl = minidom.getDOMImplementation()
+    doc = impl.createDocument(None, "rss", None)
+    rss_el = doc.documentElement
+    rss_el.setAttribute("version", "2.0")
+
+    channel = doc.createElement("channel")
+    rss_el.appendChild(channel)
+
+    def add_text(parent, tag, value):
+        el = doc.createElement(tag)
+        el.appendChild(doc.createTextNode(value or ""))
+        parent.appendChild(el)
+
+    add_text(channel, "title", title)
+    add_text(channel, "link", "https://evilgodfahim.github.io/")
+    add_text(channel, "description", f"{title} generated by script")
 
     for item in filtered:
-        it = ET.SubElement(channel, "item")
-        ET.SubElement(it, "title").text = item.get("title", "")
-        ET.SubElement(it, "link").text = item.get("link", "")
-        ET.SubElement(it, "description").text = item.get("description", "")
+        it = doc.createElement("item")
+        add_text(it, "title", item.get("title", ""))
+        add_text(it, "link", item.get("link", ""))
+
+        # --- Description: CDATA so HTML doesn't get entity-escaped ---
+        desc_el = doc.createElement("description")
+        raw = (item.get("description", "") or "").strip()
+        if raw:
+            # ]]> is the only sequence that closes a CDATA section prematurely.
+            # Split on it and re-emit as a text node between sections.
+            parts = raw.split("]]>")
+            last_i = len(parts) - 1
+            for i, part in enumerate(parts):
+                if part:
+                    desc_el.appendChild(doc.createCDATASection(part))
+                if i < last_i:
+                    desc_el.appendChild(doc.createTextNode("]]>"))
+        it.appendChild(desc_el)
+
         pub = item.get("pubDate")
-        if isinstance(pub, datetime):
-            ET.SubElement(it, "pubDate").text = pub.strftime("%a, %d %b %Y %H:%M:%S %z")
-        else:
-            ET.SubElement(it, "pubDate").text = str(pub)
+        pub_str = (
+            pub.strftime("%a, %d %b %Y %H:%M:%S %z")
+            if isinstance(pub, datetime) else str(pub or "")
+        )
+        add_text(it, "pubDate", pub_str)
+        channel.appendChild(it)
 
-    xml_str = minidom.parseString(ET.tostring(rss)).toprettyxml(indent="  ")
+    # toprettyxml inserts blank lines between elements — strip them
+    raw_xml = doc.toprettyxml(indent="  ")
+    clean_xml = "\n".join(line for line in raw_xml.splitlines() if line.strip())
     with open(file_path, "w", encoding="utf-8") as f:
-        f.write(xml_str)
+        f.write(clean_xml + "\n")
+
 
 # -----------------------------
-# ENHANCED LAST SEEN TRACKING
+# LAST SEEN TRACKING  (unchanged)
 # -----------------------------
+
 def load_last_seen():
     if os.path.exists(LAST_SEEN_FILE):
         try:
@@ -264,6 +438,7 @@ def load_last_seen():
             return {"last_seen": None, "processed_links": set()}
     return {"last_seen": None, "processed_links": set()}
 
+
 def save_last_seen(last_dt, processed_links, master_items):
     cutoff = last_dt - timedelta(days=LINK_RETENTION_DAYS)
     master_links_recent = {
@@ -271,74 +446,53 @@ def save_last_seen(last_dt, processed_links, master_items):
         if item["pubDate"] > cutoff and not is_blocked(item.get("link", ""))
     }
     links_to_keep = [link for link in processed_links if link in master_links_recent]
-
     with open(LAST_SEEN_FILE, "w", encoding="utf-8") as f:
-        json.dump({
-            "last_seen": last_dt.isoformat(),
-            "processed_links": links_to_keep
-        }, f, indent=2)
+        json.dump(
+            {"last_seen": last_dt.isoformat(), "processed_links": links_to_keep},
+            f, indent=2,
+        )
+
 
 # -----------------------------
 # MASTER FEED UPDATE
 # -----------------------------
+
 def update_master():
     print("[Updating feed_master.xml]")
 
     existing = load_existing(MASTER_FILE)
-
     existing_links = {x["link"] for x in existing}
     existing_titles = {x["title"].strip() for x in existing}
-
     new_items = []
 
     for url in FEEDS:
         try:
             feed = feedparser.parse(url)
             for entry in feed.entries:
-                # robust entry access
-                raw_link = entry.get("link") if isinstance(entry, dict) else getattr(entry, "link", "")
+                raw_link = (
+                    entry.get("link") if isinstance(entry, dict)
+                    else getattr(entry, "link", "")
+                )
                 link = normalize_link(raw_link)
 
-                # skip blocked hosts
                 if is_blocked(link):
                     continue
-
-                # preserve your filter — skip any links that reference your own domain if intended
                 if "evilgodfahim" in link:
                     continue
 
-                title_raw = entry.get("title", "") if isinstance(entry, dict) else getattr(entry, "title", "")
+                title_raw = (
+                    entry.get("title", "") if isinstance(entry, dict)
+                    else getattr(entry, "title", "")
+                )
                 title = title_raw.strip()
-
                 source = extract_source(link)
                 final_title = f"{title}. [ {source} ]" if title else f"No Title. [ {source} ]"
 
-                # skip duplicates by link OR by final_title (which includes the source tag)
                 if link in existing_links or final_title in existing_titles:
                     continue
 
-                # description: use summary, else content (content:encoded)
-                desc = ""
-                try:
-                    desc = entry.get("summary", "") if isinstance(entry, dict) else getattr(entry, "summary", "")
-                except Exception:
-                    desc = ""
-                if not desc:
-                    try:
-                        content = entry.get("content") if isinstance(entry, dict) else getattr(entry, "content", None)
-                        if content:
-                            if isinstance(content, list):
-                                first = content[0]
-                                if isinstance(first, dict):
-                                    desc = first.get("value", "") or ""
-                                else:
-                                    # some feedparser builds expose objects with .value
-                                    desc = getattr(first, "value", "") or ""
-                            else:
-                                # some feeds put full html in entry.content as a string
-                                desc = content if isinstance(content, str) else ""
-                    except Exception:
-                        desc = ""
+                # Build rich HTML description (thumbnail + body + more_link)
+                desc = build_description(entry, link)
 
                 pub_dt = parse_date(entry)
 
@@ -346,9 +500,8 @@ def update_master():
                     "title": final_title,
                     "link": link,
                     "description": desc,
-                    "pubDate": pub_dt
+                    "pubDate": pub_dt,
                 })
-
                 existing_links.add(link)
                 existing_titles.add(final_title)
 
@@ -356,7 +509,6 @@ def update_master():
             print(f"Error parsing {url}: {e}")
 
     all_items = existing + new_items
-    # filter blocked before sorting/trimming just in case
     all_items = [i for i in all_items if not is_blocked(i.get("link", ""))]
     all_items.sort(key=lambda x: x["pubDate"], reverse=True)
     all_items = all_items[:MAX_ITEMS]
@@ -366,17 +518,17 @@ def update_master():
             "title": "No articles yet",
             "link": "https://evilgodfahim.github.io/",
             "description": "Master feed will populate after first successful fetch.",
-            "pubDate": datetime.now(timezone.utc)
+            "pubDate": datetime.now(timezone.utc),
         }]
 
     write_rss(all_items, MASTER_FILE, title="Master Feed (Updated every 30 mins)")
     print(f"✓ feed_master.xml updated with {len(all_items)} items ({len(new_items)} new)")
 
 
+# -----------------------------
+# DAILY FEED UPDATE  (unchanged)
+# -----------------------------
 
-# -----------------------------
-# DAILY FEED UPDATE
-# -----------------------------
 def update_daily():
     print("[Updating daily_feed.xml with robust tracking]")
     to_zone = timezone(timedelta(hours=BD_OFFSET))
@@ -385,24 +537,17 @@ def update_daily():
     last_seen_dt = last_data["last_seen"]
     processed_links = set(last_data["processed_links"])
 
-    if last_seen_dt:
-        lookback_dt = last_seen_dt - timedelta(hours=LOOKBACK_HOURS)
-    else:
-        lookback_dt = None
+    lookback_dt = (last_seen_dt - timedelta(hours=LOOKBACK_HOURS)) if last_seen_dt else None
 
     master_items = load_existing(MASTER_FILE)
-    # ensure master_items are free of blocked links
     master_items = [m for m in master_items if not is_blocked(m.get("link", ""))]
 
     new_items = []
-
     for item in master_items:
         link = item["link"]
         pub = item["pubDate"].astimezone(to_zone)
-
         if link in processed_links:
             continue
-
         if not lookback_dt or pub > lookback_dt:
             new_items.append(item)
             processed_links.add(link)
@@ -412,29 +557,22 @@ def update_daily():
             "title": "No new articles today",
             "link": "https://evilgodfahim.github.io/",
             "description": "Daily feed will populate after first articles appear.",
-            "pubDate": datetime.now(timezone.utc)
+            "pubDate": datetime.now(timezone.utc),
         }]
-
         write_rss(placeholder, DAILY_FILE, title="Daily Feed (Updated 9 AM BD)")
         write_rss([], DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
-
-        last_dt = placeholder[0]["pubDate"]
-        save_last_seen(last_dt, processed_links, master_items)
+        save_last_seen(placeholder[0]["pubDate"], processed_links, master_items)
         return
 
     new_items.sort(key=lambda x: x["pubDate"], reverse=True)
-
     first_batch = new_items[:100]
     second_batch = new_items[100:]
 
     write_rss(first_batch, DAILY_FILE, title="Daily Feed (Updated 9 AM BD)")
+    write_rss(second_batch if second_batch else [], DAILY_FILE_2,
+              title="Daily Feed Extra (Updated 9 AM BD)")
 
-    if second_batch:
-        write_rss(second_batch, DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
-    else:
-        write_rss([], DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
-
-    last_dt = max([i["pubDate"] for i in new_items])
+    last_dt = max(i["pubDate"] for i in new_items)
     save_last_seen(last_dt, processed_links, master_items)
 
     sources = set()
@@ -446,6 +584,7 @@ def update_daily():
         for src in sorted(sources):
             f.write(src + "\n")
     print(f"✓ sources.txt written with {len(sources)} unique sources")
+
 
 # -----------------------------
 # MAIN
