@@ -92,7 +92,7 @@ SOURCES_FILE = "sources.txt"
 MAX_ITEMS = 1000
 BD_OFFSET = 6
 LOOKBACK_HOURS = 48
-LINK_RETENTION_DAYS = 7
+LINK_RETENTION_DAYS = 365
 
 # -----------------------------
 # BLOCKLIST
