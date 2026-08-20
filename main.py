@@ -12,6 +12,7 @@ import json
 import re
 from urllib.parse import urlparse, urlunparse
 from email.utils import parsedate_to_datetime
+import requests
 
 # -----------------------------
 # CONFIGURATION
@@ -93,6 +94,7 @@ MAX_ITEMS = 1000
 BD_OFFSET = 6
 LOOKBACK_HOURS = 48
 LINK_RETENTION_DAYS = 365
+FETCH_TIMEOUT = 15  # seconds per feed
 
 # -----------------------------
 # BLOCKLIST
@@ -357,7 +359,6 @@ def write_rss(items, file_path, title="Feed"):
       - <title>    in CDATA
       - <description> in CDATA
       - <guid isPermaLink="false"> as MD5 of the item link
-    matching the structure of the reference feed (bonikbarta style).
     """
     filtered = [i for i in items if not is_blocked(i.get("link", ""))]
 
@@ -406,7 +407,6 @@ def write_rss(items, file_path, title="Feed"):
         )
         add_text(it, "pubDate", pub_str)
 
-        # <guid isPermaLink="false">MD5_OF_LINK</guid>
         guid_el = doc.createElement("guid")
         guid_el.setAttribute("isPermaLink", "false")
         guid_el.appendChild(doc.createTextNode(make_guid(item.get("link", ""))))
@@ -453,6 +453,53 @@ def save_last_seen(last_dt, processed_links, master_items):
 
 
 # -----------------------------
+# FEED FETCHER
+# -----------------------------
+
+def fetch_feed(url, timeout=FETCH_TIMEOUT):
+    """
+    Fetch via requests (real timeout + real HTTP errors),
+    then hand bytes to feedparser.
+
+    Returns (feed, warning_str | None).
+    feed is None on hard failure — caller should skip.
+    feed is non-None with a warning on partial parse — still usable.
+    """
+    try:
+        resp = requests.get(
+            url,
+            timeout=timeout,
+            headers={
+                "User-Agent": "Mozilla/5.0 (compatible; feedparser/6.0)",
+                "Accept": "application/rss+xml, application/atom+xml, text/xml, */*",
+            },
+            allow_redirects=True,
+        )
+    except requests.exceptions.Timeout:
+        return None, f"timeout after {timeout}s"
+    except requests.exceptions.ConnectionError as e:
+        return None, f"connection error: {e}"
+    except requests.exceptions.RequestException as e:
+        return None, f"request error: {e}"
+
+    if resp.status_code >= 400:
+        return None, f"HTTP {resp.status_code}"
+
+    # Pass raw bytes — lets feedparser sniff encoding from XML declaration / BOM
+    # instead of trusting the server's (often wrong) Content-Type charset.
+    feed = feedparser.parse(resp.content)
+
+    if feed.bozo:
+        exc = getattr(feed, "bozo_exception", "unknown")
+        if not feed.entries:
+            return None, f"malformed XML, 0 entries recoverable: {exc}"
+        # Partial parse — log but continue
+        return feed, f"malformed XML, {len(feed.entries)} entries recovered: {exc}"
+
+    return feed, None
+
+
+# -----------------------------
 # MASTER FEED UPDATE
 # -----------------------------
 
@@ -464,46 +511,76 @@ def update_master():
     existing_titles = {x["title"].strip() for x in existing}
     new_items = []
 
+    ok_count = skip_count = warn_count = 0
+
     for url in FEEDS:
-        try:
-            feed = feedparser.parse(url)
-            for entry in feed.entries:
-                raw_link = (
-                    entry.get("link") if isinstance(entry, dict)
-                    else getattr(entry, "link", "")
-                )
-                link = normalize_link(raw_link)
+        feed, warn = fetch_feed(url)
 
-                if is_blocked(link):
-                    continue
-                if "evilgodfahim" in link:
-                    continue
+        if feed is None:
+            skip_count += 1
+            print(f"  [SKIP] {url}")
+            print(f"         {warn}")
+            continue
 
-                title_raw = (
-                    entry.get("title", "") if isinstance(entry, dict)
-                    else getattr(entry, "title", "")
-                )
-                title = title_raw.strip()
-                source = extract_source(link)
-                final_title = f"{title}. [ {source} ]" if title else f"No Title. [ {source} ]"
+        if warn:
+            warn_count += 1
+            print(f"  [WARN] {url}")
+            print(f"         {warn}")
+        else:
+            ok_count += 1
 
-                if link in existing_links or final_title in existing_titles:
-                    continue
+        added = skipped_dup = skipped_blocked = skipped_self = 0
 
-                desc = build_description(entry, link)
-                pub_dt = parse_date(entry)
+        for entry in feed.entries:
+            raw_link = (
+                entry.get("link") if isinstance(entry, dict)
+                else getattr(entry, "link", "")
+            ) or ""
+            link = normalize_link(raw_link)
 
-                new_items.append({
-                    "title": final_title,
-                    "link": link,
-                    "description": desc,
-                    "pubDate": pub_dt,
-                })
-                existing_links.add(link)
-                existing_titles.add(final_title)
+            if is_blocked(link):
+                skipped_blocked += 1
+                continue
+            if "evilgodfahim" in link:
+                skipped_self += 1
+                continue
 
-        except Exception as e:
-            print(f"Error parsing {url}: {e}")
+            title_raw = (
+                entry.get("title", "") if isinstance(entry, dict)
+                else getattr(entry, "title", "")
+            ) or ""
+            title = title_raw.strip()
+            source = extract_source(link)
+            final_title = f"{title}. [ {source} ]" if title else f"No Title. [ {source} ]"
+
+            if link in existing_links or final_title in existing_titles:
+                skipped_dup += 1
+                continue
+
+            desc = build_description(entry, link)
+            pub_dt = parse_date(entry)
+
+            new_items.append({
+                "title": final_title,
+                "link": link,
+                "description": desc,
+                "pubDate": pub_dt,
+            })
+            existing_links.add(link)
+            existing_titles.add(final_title)
+            added += 1
+
+        print(
+            f"  [OK]   {url}\n"
+            f"         entries={len(feed.entries)}"
+            f"  new={added}  dup={skipped_dup}"
+            f"  blocked={skipped_blocked}  self={skipped_self}"
+        )
+
+    print(
+        f"\n  feeds: {ok_count} ok / {warn_count} warn / {skip_count} skipped"
+        f" / {len(FEEDS)} total"
+    )
 
     all_items = existing + new_items
     all_items = [i for i in all_items if not is_blocked(i.get("link", ""))]
