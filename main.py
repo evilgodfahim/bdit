@@ -90,7 +90,7 @@ DAILY_FILE_2 = "daily_feed_2.xml"
 LAST_SEEN_FILE = "last_seen.json"
 SOURCES_FILE = "sources.txt"
 
-MAX_ITEMS = 1000
+MAX_ITEMS = 5000
 BD_OFFSET = 6
 LOOKBACK_HOURS = 48
 LINK_RETENTION_DAYS = 365
