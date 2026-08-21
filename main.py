@@ -150,6 +150,104 @@ def extract_source(link):
 
 
 # -----------------------------
+# BENGALI DATE CONSTANTS
+# -----------------------------
+BENGALI_DIGITS = str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789")
+
+BENGALI_MONTHS = {
+    "জানুয়ারি":  1,  "জানুয়ারী":  1,
+    "ফেব্রুয়ারি": 2, "ফেব্রুয়ারী": 2,
+    "মার্চ":      3,
+    "এপ্রিল":     4,
+    "মে":         5,
+    "জুন":        6,
+    "জুলাই":      7,
+    "আগস্ট":      8,
+    "সেপ্টেম্বর": 9,
+    "অক্টোবর":   10,
+    "নভেম্বর":   11,
+    "ডিসেম্বর":  12,
+}
+
+BENGALI_AM = "এএম"
+BENGALI_PM = "পিএম"
+
+
+# -----------------------------
+# BENGALI DATE PARSER
+# -----------------------------
+def parse_bengali_date(text):
+    """
+    Parse Bengali-format pubDate strings into UTC datetime.
+
+    Handles:
+      ০৫ আগস্ট ২০২৬ ০৯:১৪ এএম        (Protidin er Bangladesh)
+      ১৪ এপ্রিল ২০২৬, ১২:০০ এএম        (Amader Shomoy)
+      আপডেটঃ ০৫ জুন ২০২৬ | ০৭:৪৮       (Samakal — no AM/PM, treat as 24h)
+
+    Returns UTC datetime or None.
+    """
+    if not text:
+        return None
+
+    # Bengali numerals → ASCII digits
+    text = text.translate(BENGALI_DIGITS).strip()
+
+    # Strip common Bengali prefixes
+    text = re.sub(r"^আপডেটঃ\s*", "", text).strip()
+
+    # Detect and remove AM/PM markers
+    is_pm = BENGALI_PM in text
+    is_am = BENGALI_AM in text
+    text = text.replace(BENGALI_PM, "").replace(BENGALI_AM, "").strip()
+
+    # Identify month, replace with ASCII token so regex stays simple
+    month_num = None
+    for bn_month, num in BENGALI_MONTHS.items():
+        if bn_month in text:
+            month_num = num
+            text = text.replace(bn_month, f"_M{num:02d}_", 1)
+            break
+
+    if month_num is None:
+        return None
+
+    # Match: DD _Mxx_ YYYY [comma/pipe/space] HH:MM
+    m = re.search(
+        r"(\d{1,2})\s+_M(\d{2})_\s+(\d{4})[,\s|]+(\d{1,2}):(\d{2})",
+        text,
+    )
+    if m:
+        day    = int(m.group(1))
+        mon    = int(m.group(2))
+        year   = int(m.group(3))
+        hour   = int(m.group(4))
+        minute = int(m.group(5))
+
+        if is_pm and hour != 12:
+            hour += 12
+        elif is_am and hour == 12:
+            hour = 0   # 12:xx AM → midnight
+    else:
+        # Date only — no time component
+        m2 = re.search(r"(\d{1,2})\s+_M(\d{2})_\s+(\d{4})", text)
+        if not m2:
+            return None
+        day    = int(m2.group(1))
+        mon    = int(m2.group(2))
+        year   = int(m2.group(3))
+        hour   = 0
+        minute = 0
+
+    # Treat as BD local time (UTC+6), convert to UTC
+    try:
+        bd_tz = timezone(timedelta(hours=BD_OFFSET))
+        return datetime(year, mon, day, hour, minute, tzinfo=bd_tz).astimezone(timezone.utc)
+    except ValueError:
+        return None
+
+
+# -----------------------------
 # DATE PARSER
 # -----------------------------
 def parse_date(entry):
@@ -172,13 +270,18 @@ def parse_date(entry):
         except Exception:
             pass
         if val:
+            # Standard RFC 2822 first
             try:
                 dt = parsedate_to_datetime(val)
                 if dt.tzinfo is None:
                     dt = dt.replace(tzinfo=timezone.utc)
                 return dt.astimezone(timezone.utc)
             except Exception:
-                continue
+                pass
+            # Bengali date fallback
+            dt = parse_bengali_date(val)
+            if dt:
+                return dt
 
     return datetime.now(timezone.utc)
 
@@ -254,12 +357,16 @@ def load_existing(file_path):
 
             pubDate_text = pub_node.text if pub_node is not None else None
             if pubDate_text:
+                # Try RFC 2822 first, then Bengali
+                dt = None
                 try:
                     dt = parsedate_to_datetime(pubDate_text)
                     if dt.tzinfo is None:
                         dt = dt.replace(tzinfo=timezone.utc)
                     dt = dt.astimezone(timezone.utc)
                 except Exception:
+                    dt = parse_bengali_date(pubDate_text)
+                if dt is None:
                     dt = datetime.now(timezone.utc)
             else:
                 dt = datetime.now(timezone.utc)
@@ -689,7 +796,7 @@ def update_daily():
 
     sources = set()
     for item in new_items:
-        m = re.search(r'\[\s*(.+?)\s*\]', item.get("title", ""))
+        m = re.search(r"\[\s*(.+?)\s*\]", item.get("title", ""))
         if m:
             sources.add(m.group(1).strip())
     with open(SOURCES_FILE, "w", encoding="utf-8") as f:
