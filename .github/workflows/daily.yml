@@ -2,6 +2,53 @@ name: Daily Feed
 
 on:
   schedule:
+    - cron: "10 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: pip install feedparser requests
+
+      - name: Run main.py (daily only)
+        run: python main.py --daily-only
+
+      - name: Ensure required files exist
+        run: |
+          if [ ! -f daily_feed.xml ]; then
+            echo '<rss version="2.0"><channel><title>Daily Feed</title></channel></rss>' > daily_feed.xml
+          fi
+          if [ ! -f daily_feed_2.xml ]; then
+            echo '<rss version="2.0"><channel><title>Daily Feed Extra</title></channel></rss>' > daily_feed_2.xml
+          fi
+          if [ ! -f last_seen.json ]; then
+            echo '{"last_seen": null, "processed_links": []}' > last_seen.json
+          fi
+
+      - name: Commit & push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add daily_feed*.xml last_seen.json *.txt
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Auto update daily feed"
+            git push
+          finame: Daily Feed
+
+on:
+  schedule:
     - cron: "10 0 * * *"       # 5:30 AM Bangladesh Time
   workflow_dispatch:
 
