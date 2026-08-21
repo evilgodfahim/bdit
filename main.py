@@ -84,17 +84,18 @@ FEEDS = [
     "https://evilgodfahim.github.io/dr/opinion.xml",
 ]
 
-MASTER_FILE = "feed_master.xml"
-DAILY_FILE = "daily_feed.xml"
-DAILY_FILE_2 = "daily_feed_2.xml"
-LAST_SEEN_FILE = "last_seen.json"
-SOURCES_FILE = "sources.txt"
+MASTER_FILE      = "feed_master.xml"
+DAILY_FILE       = "daily_feed.xml"
+DAILY_FILE_2     = "daily_feed_2.xml"
+LAST_SEEN_FILE   = "last_seen.json"
+MASTER_SEEN_FILE = "master_seen_links.json"   # persistent master dedup
+SOURCES_FILE     = "sources.txt"
 
-MAX_ITEMS = 5000
-BD_OFFSET = 6
-LOOKBACK_HOURS = 48
+MAX_ITEMS           = 1000
+BD_OFFSET           = 6
+LOOKBACK_HOURS      = 48
 LINK_RETENTION_DAYS = 365
-FETCH_TIMEOUT = 15  # seconds per feed
+FETCH_TIMEOUT       = 15  # seconds per feed
 
 # -----------------------------
 # BLOCKLIST
@@ -183,6 +184,45 @@ def parse_date(entry):
 
 
 # -----------------------------
+# PERSISTENT MASTER SEEN LINKS
+# Tracks every link ever added to master, with timestamps.
+# Survives the MAX_ITEMS cap — items evicted from master XML
+# won't be re-added on future runs.
+# -----------------------------
+
+def load_master_seen():
+    """
+    Returns (seen_dict, seen_set).
+      seen_dict: {normalized_link: iso_timestamp}  — for saving back
+      seen_set:  set of links                      — for fast lookup
+    """
+    if not os.path.exists(MASTER_SEEN_FILE):
+        return {}, set()
+    try:
+        with open(MASTER_SEEN_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=LINK_RETENTION_DAYS)).isoformat()
+        raw = data.get("seen_links", {})
+        # Migrate old list format if needed
+        if isinstance(raw, list):
+            now_iso = datetime.now(timezone.utc).isoformat()
+            seen = {link: now_iso for link in raw}
+        else:
+            seen = {link: ts for link, ts in raw.items() if ts >= cutoff}
+        return seen, set(seen.keys())
+    except Exception:
+        return {}, set()
+
+
+def save_master_seen(seen: dict):
+    """Prune to LINK_RETENTION_DAYS and persist."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=LINK_RETENTION_DAYS)).isoformat()
+    pruned = {link: ts for link, ts in seen.items() if ts >= cutoff}
+    with open(MASTER_SEEN_FILE, "w", encoding="utf-8") as f:
+        json.dump({"seen_links": pruned}, f, indent=2)
+
+
+# -----------------------------
 # LOAD EXISTING
 # -----------------------------
 def load_existing(file_path):
@@ -197,12 +237,12 @@ def load_existing(file_path):
     for item in root.findall(".//item"):
         try:
             title_node = item.find("title")
-            link_node = item.find("link")
-            desc_node = item.find("description")
-            pub_node = item.find("pubDate")
+            link_node  = item.find("link")
+            desc_node  = item.find("description")
+            pub_node   = item.find("pubDate")
 
             title = (title_node.text or "").strip() if title_node is not None else ""
-            link = normalize_link(link_node.text or "") if link_node is not None else ""
+            link  = normalize_link(link_node.text or "") if link_node is not None else ""
 
             if is_blocked(link):
                 continue
@@ -321,10 +361,10 @@ def get_thumbnail(entry):
 
 
 def build_description(entry, link):
-    body = get_description(entry)
+    body  = get_description(entry)
     thumb = get_thumbnail(entry)
 
-    has_img = bool(re.search(r"<img\b", body, re.IGNORECASE)) if body else False
+    has_img  = bool(re.search(r"<img\b", body, re.IGNORECASE)) if body else False
     has_more = ("more_link" in body or "বিস্তারিত" in body) if body else False
 
     parts = []
@@ -345,7 +385,6 @@ def build_description(entry, link):
 # -----------------------------
 
 def make_guid(link):
-    """MD5 of the normalized link — stable, collision-resistant for feed-scale data."""
     return hashlib.md5(link.encode("utf-8")).hexdigest()
 
 
@@ -354,16 +393,10 @@ def make_guid(link):
 # -----------------------------
 
 def write_rss(items, file_path, title="Feed"):
-    """
-    Produces RSS 2.0 with:
-      - <title>    in CDATA
-      - <description> in CDATA
-      - <guid isPermaLink="false"> as MD5 of the item link
-    """
     filtered = [i for i in items if not is_blocked(i.get("link", ""))]
 
-    impl = minidom.getDOMImplementation()
-    doc = impl.createDocument(None, "rss", None)
+    impl   = minidom.getDOMImplementation()
+    doc    = impl.createDocument(None, "rss", None)
     rss_el = doc.documentElement
     rss_el.setAttribute("version", "2.0")
 
@@ -376,11 +409,10 @@ def write_rss(items, file_path, title="Feed"):
         parent.appendChild(el)
 
     def add_cdata(parent, tag, value):
-        """Wrap value in CDATA, safely splitting any embedded ]]> sequences."""
-        el = doc.createElement(tag)
+        el  = doc.createElement(tag)
         raw = (value or "").strip()
         if raw:
-            parts = raw.split("]]>")
+            parts  = raw.split("]]>")
             last_i = len(parts) - 1
             for i, part in enumerate(parts):
                 if part:
@@ -414,14 +446,14 @@ def write_rss(items, file_path, title="Feed"):
 
         channel.appendChild(it)
 
-    raw_xml = doc.toprettyxml(indent="  ")
+    raw_xml   = doc.toprettyxml(indent="  ")
     clean_xml = "\n".join(line for line in raw_xml.splitlines() if line.strip())
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(clean_xml + "\n")
 
 
 # -----------------------------
-# LAST SEEN TRACKING
+# LAST SEEN TRACKING (daily feed)
 # -----------------------------
 
 def load_last_seen():
@@ -430,8 +462,8 @@ def load_last_seen():
             with open(LAST_SEEN_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 last_seen_str = data.get("last_seen")
-                processed = set(data.get("processed_links", []))
-                last_seen_dt = datetime.fromisoformat(last_seen_str) if last_seen_str else None
+                processed     = set(data.get("processed_links", []))
+                last_seen_dt  = datetime.fromisoformat(last_seen_str) if last_seen_str else None
                 return {"last_seen": last_seen_dt, "processed_links": processed}
         except Exception:
             return {"last_seen": None, "processed_links": set()}
@@ -458,12 +490,8 @@ def save_last_seen(last_dt, processed_links, master_items):
 
 def fetch_feed(url, timeout=FETCH_TIMEOUT):
     """
-    Fetch via requests (real timeout + real HTTP errors),
-    then hand bytes to feedparser.
-
-    Returns (feed, warning_str | None).
+    Returns (feed, warn_str | None).
     feed is None on hard failure — caller should skip.
-    feed is non-None with a warning on partial parse — still usable.
     """
     try:
         resp = requests.get(
@@ -485,15 +513,12 @@ def fetch_feed(url, timeout=FETCH_TIMEOUT):
     if resp.status_code >= 400:
         return None, f"HTTP {resp.status_code}"
 
-    # Pass raw bytes — lets feedparser sniff encoding from XML declaration / BOM
-    # instead of trusting the server's (often wrong) Content-Type charset.
     feed = feedparser.parse(resp.content)
 
     if feed.bozo:
         exc = getattr(feed, "bozo_exception", "unknown")
         if not feed.entries:
             return None, f"malformed XML, 0 entries recoverable: {exc}"
-        # Partial parse — log but continue
         return feed, f"malformed XML, {len(feed.entries)} entries recovered: {exc}"
 
     return feed, None
@@ -506,12 +531,19 @@ def fetch_feed(url, timeout=FETCH_TIMEOUT):
 def update_master():
     print("[Updating feed_master.xml]")
 
-    existing = load_existing(MASTER_FILE)
-    existing_links = {x["link"] for x in existing}
+    existing        = load_existing(MASTER_FILE)
+    existing_links  = {x["link"] for x in existing}
     existing_titles = {x["title"].strip() for x in existing}
+
+    # Load persistent seen links — these survive the MAX_ITEMS cap.
+    # Union with current master so both sources guard against re-addition.
+    master_seen, master_seen_links = load_master_seen()
+    all_known_links = existing_links | master_seen_links
+
+    now_iso   = datetime.now(timezone.utc).isoformat()
     new_items = []
 
-    ok_count = skip_count = warn_count = 0
+    ok_count = warn_count = skip_count = 0
 
     for url in FEEDS:
         feed, warn = fetch_feed(url)
@@ -549,25 +581,27 @@ def update_master():
                 entry.get("title", "") if isinstance(entry, dict)
                 else getattr(entry, "title", "")
             ) or ""
-            title = title_raw.strip()
-            source = extract_source(link)
+            title       = title_raw.strip()
+            source      = extract_source(link)
             final_title = f"{title}. [ {source} ]" if title else f"No Title. [ {source} ]"
 
-            if link in existing_links or final_title in existing_titles:
+            # Dedup against both persistent seen AND current master titles
+            if link in all_known_links or final_title in existing_titles:
                 skipped_dup += 1
                 continue
 
-            desc = build_description(entry, link)
+            desc   = build_description(entry, link)
             pub_dt = parse_date(entry)
 
             new_items.append({
-                "title": final_title,
-                "link": link,
+                "title":       final_title,
+                "link":        link,
                 "description": desc,
-                "pubDate": pub_dt,
+                "pubDate":     pub_dt,
             })
-            existing_links.add(link)
+            all_known_links.add(link)
             existing_titles.add(final_title)
+            master_seen[link] = now_iso   # mark as seen persistently
             added += 1
 
         print(
@@ -582,6 +616,10 @@ def update_master():
         f" / {len(FEEDS)} total"
     )
 
+    # Persist seen links before trimming — so every processed link is remembered
+    # even if it gets evicted from master by the MAX_ITEMS cap.
+    save_master_seen(master_seen)
+
     all_items = existing + new_items
     all_items = [i for i in all_items if not is_blocked(i.get("link", ""))]
     all_items.sort(key=lambda x: x["pubDate"], reverse=True)
@@ -589,10 +627,10 @@ def update_master():
 
     if not all_items:
         all_items = [{
-            "title": "No articles yet",
-            "link": "https://evilgodfahim.github.io/",
+            "title":       "No articles yet",
+            "link":        "https://evilgodfahim.github.io/",
             "description": "Master feed will populate after first successful fetch.",
-            "pubDate": datetime.now(timezone.utc),
+            "pubDate":     datetime.now(timezone.utc),
         }]
 
     write_rss(all_items, MASTER_FILE, title="Master Feed (Updated every 30 mins)")
@@ -607,8 +645,8 @@ def update_daily():
     print("[Updating daily_feed.xml with robust tracking]")
     to_zone = timezone(timedelta(hours=BD_OFFSET))
 
-    last_data = load_last_seen()
-    last_seen_dt = last_data["last_seen"]
+    last_data       = load_last_seen()
+    last_seen_dt    = last_data["last_seen"]
     processed_links = set(last_data["processed_links"])
 
     lookback_dt = (last_seen_dt - timedelta(hours=LOOKBACK_HOURS)) if last_seen_dt else None
@@ -619,7 +657,7 @@ def update_daily():
     new_items = []
     for item in master_items:
         link = item["link"]
-        pub = item["pubDate"].astimezone(to_zone)
+        pub  = item["pubDate"].astimezone(to_zone)
         if link in processed_links:
             continue
         if not lookback_dt or pub > lookback_dt:
@@ -628,10 +666,10 @@ def update_daily():
 
     if not new_items:
         placeholder = [{
-            "title": "No new articles today",
-            "link": "https://evilgodfahim.github.io/",
+            "title":       "No new articles today",
+            "link":        "https://evilgodfahim.github.io/",
             "description": "Daily feed will populate after first articles appear.",
-            "pubDate": datetime.now(timezone.utc),
+            "pubDate":     datetime.now(timezone.utc),
         }]
         write_rss(placeholder, DAILY_FILE, title="Daily Feed (Updated 9 AM BD)")
         write_rss([], DAILY_FILE_2, title="Daily Feed Extra (Updated 9 AM BD)")
@@ -639,7 +677,7 @@ def update_daily():
         return
 
     new_items.sort(key=lambda x: x["pubDate"], reverse=True)
-    first_batch = new_items[:100]
+    first_batch  = new_items[:100]
     second_batch = new_items[100:]
 
     write_rss(first_batch, DAILY_FILE, title="Daily Feed (Updated 9 AM BD)")
