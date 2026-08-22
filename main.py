@@ -19,6 +19,10 @@ import requests
 # -----------------------------
 FEEDS = [
     "https://politepaul.com/fd/lRzLqNhRg2jV.xml",
+
+"https://www.kalbela.com/rss/opinion-rss.xml",
+
+"https://www.kalbela.com/rss/opinion/readers-voice-rss.xml",
     "https://evilgodfahim.github.io/inqifaq/feeds/feed.xml",
     "https://evilgodfahim.github.io/salo/feeds/feed.xml",
     "https://evilgodfahim.github.io/ch/thoughts.xml",
