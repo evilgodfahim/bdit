@@ -10,7 +10,6 @@ dailyamardesh
 dailyinqilab
 dailynayadiganta
 dailysangram
-dhakamail
 dhakapost
 ittefaq
 jagonews24
@@ -23,3 +22,4 @@ protidinerbangladesh
 protidinersangbad
 rupalibangladesh
 samakal
+sharebiz
