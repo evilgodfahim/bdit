@@ -1,5 +1,6 @@
 agamirsomoy
 ajkerpatrika
+bangladesherkhabor
 banglatribune
 bbc
 bd-pratidin
@@ -7,6 +8,8 @@ bonikbarta
 chaarcha
 dailyamardesh
 dailyinqilab
+dailysangram
+deshrupantor
 dhakamail
 dhakapost
 ittefaq
@@ -14,7 +17,6 @@ jugantor
 kalbela
 kalerkantho
 khaborerkagoj
-mzamin
 prothomalo
+protidinerbangladesh
 protidinersangbad
-rupalibangladesh
