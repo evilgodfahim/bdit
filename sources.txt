@@ -1,5 +1,6 @@
 agamirsomoy
 ajkerpatrika
+banglanews24
 banglatribune
 bbc
 bd-pratidin
@@ -19,4 +20,5 @@ khaborerkagoj
 mzamin
 prothomalo
 protidinersangbad
+rupalibangladesh
 samakal
